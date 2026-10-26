@@ -72,7 +72,7 @@ CLI 模式调用 `python -u -m zzz_od.win_exe.launcher`，透传参数并返回 
 
 ## 构建与验证
 
-使用 Visual Studio 的“.NET 桌面开发”组件和 .NET Framework 4.7.2 targeting pack。现有 `packages/` 目录保留；新增固定版本的 `Fody 6.9.3` 和 `Costura.Fody 6.2.0`，缺少程序包时构建脚本会自动通过 NuGet 还原。
+使用 Visual Studio 的“.NET 桌面开发”组件和 .NET Framework 4.7.2 targeting pack。依赖版本固定在 `packages.config`（包括 `Fody 6.9.3` 和 `Costura.Fody 6.2.0`），缺少程序包时构建脚本会自动通过 NuGet 还原到 `packages/`。
 
 在仓库根目录运行：
 
@@ -81,6 +81,12 @@ CLI 模式调用 `python -u -m zzz_od.win_exe.launcher`，透传参数并返回 
 ```
 
 脚本定位 Visual Studio MSBuild，构建 Release、运行 15 组后端检查和单文件启动检查，生成 `artifacts/OneDragonLauncherWpf.exe` 与只包含该 EXE 的 ZIP。测试程序不依赖外部测试框架。
+
+### GitHub Actions 自动打包
+
+推送到 `main`、向 `main` 提交 Pull Request 时，`Build Windows ZIP` 工作流会在 Windows 上运行同一个 `build.ps1`，完成依赖还原、Release 构建和全部测试后上传 ZIP。也可以在仓库 **Actions → Build Windows ZIP → Run workflow** 手动触发。
+
+下载方式：打开成功的运行记录，在 **Artifacts** 中下载 `OneDragonLauncherWpf-Windows.zip`。ZIP 内只有 `OneDragonLauncherWpf.exe`，下载文件不会再额外套一层 ZIP；产物保留 30 天。
 
 Release 使用 `FodyWeavers.xml` 配置的 Costura 将托管依赖嵌入 EXE，设置 `DisableCompression="true"` 关闭压缩，启动时直接从内存加载，省去解压步骤；不嵌入依赖的 PDB。单文件 EXE 约 7.08 MiB。Logo、图标和 XAML 本身已编入应用资源。Debug 保留普通 DLL 输出，便于 F5 调试。
 
