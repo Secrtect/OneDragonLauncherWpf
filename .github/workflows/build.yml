@@ -29,7 +29,12 @@ jobs:
           persist-credentials: false
 
       - name: Build Release and run tests
-        run: ./build.ps1
+        run: ./build.ps1 -SkipArchive
+
+      - name: Compress EXE to ZIP with PowerShell
+        run: |
+          Compress-Archive -LiteralPath artifacts/OneDragonLauncherWpf.exe `
+            -DestinationPath artifacts/OneDragonLauncherWpf-Windows.zip -Force
 
       - name: Upload Windows ZIP
         uses: actions/upload-artifact@v7

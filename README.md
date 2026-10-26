@@ -84,7 +84,7 @@ CLI 模式调用 `python -u -m zzz_od.win_exe.launcher`，透传参数并返回 
 
 ### GitHub Actions 自动打包
 
-推送到 `main`、向 `main` 提交 Pull Request 时，`Build Windows ZIP` 工作流会在 Windows 上运行同一个 `build.ps1`，完成依赖还原、Release 构建和全部测试后上传 ZIP。也可以在仓库 **Actions → Build Windows ZIP → Run workflow** 手动触发。
+推送到 `main`、向 `main` 提交 Pull Request 时，`Build Windows ZIP` 工作流会在 GitHub 的 Windows 运行器上执行 `build.ps1 -SkipArchive`，完成依赖还原、Release EXE 构建和全部测试，再单独调用 PowerShell `Compress-Archive` 将 EXE 压缩成 ZIP 并上传。也可以在仓库 **Actions → Build Windows ZIP → Run workflow** 手动触发。本地直接运行 `build.ps1` 仍会自动完成编译、测试和压缩。
 
 下载方式：打开成功的运行记录，在 **Artifacts** 中下载 `OneDragonLauncherWpf-Windows.zip`。ZIP 内只有 `OneDragonLauncherWpf.exe`，下载文件不会再额外套一层 ZIP；产物保留 30 天。
 

@@ -1,4 +1,4 @@
-param([switch]$SkipTests)
+param([switch]$SkipTests, [switch]$SkipArchive)
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
 $locator = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
@@ -52,7 +52,9 @@ if (-not $SkipTests) {
     & (Join-Path $projectRoot 'tests\single-file-bin\SingleFile.Smoke.exe') $singleExecutable
     if ($LASTEXITCODE -ne 0) { throw '单文件独立启动验证失败。' }
 }
-$archivePath = Join-Path $artifactDirectory 'OneDragonLauncherWpf-Windows.zip'
-Compress-Archive -LiteralPath $singleExecutable -DestinationPath $archivePath -Force
 Write-Host ("单文件: {0} ({1:N2} MiB)" -f $singleExecutable, ((Get-Item -LiteralPath $singleExecutable).Length / 1MB))
-Write-Host "已生成: $archivePath"
+if (-not $SkipArchive) {
+    $archivePath = Join-Path $artifactDirectory 'OneDragonLauncherWpf-Windows.zip'
+    Compress-Archive -LiteralPath $singleExecutable -DestinationPath $archivePath -Force
+    Write-Host "已生成: $archivePath"
+}
