@@ -1,0 +1,206 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading.Tasks;
+using OneDragonLauncherWpf.Services;
+
+internal static class Program
+{
+    private static int passed;
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr CommandLineToArgvW(string command, out int count);
+    [DllImport("kernel32.dll")] private static extern IntPtr LocalFree(IntPtr pointer);
+
+    private static int Main(string[] args)
+    {
+        if (args.Length > 0 && args[0] == "-u")
+        {
+            Console.OutputEncoding = new UTF8Encoding(false);
+            Console.WriteLine("当前工作目录: " + Environment.CurrentDirectory);
+            Console.WriteLine("开始配置环境变量");
+            Console.WriteLine("\x1b[32m正在检查代码更新\x1b[0m");
+            for (int i = 0; i < 300; i++) { Console.WriteLine("标准输出 中文 " + i); Console.Error.WriteLine("标准错误 中文 " + i); }
+            Console.Error.WriteLine("RuntimeError: 模拟启动失败");
+            Console.WriteLine("最后一行：输出已完整读取");
+            return 7;
+        }
+
+        string temporary = Path.Combine(Path.GetTempPath(), "OneDragon WPF tests 中文 " + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temporary);
+        try
+        {
+            Check("Debug 默认预览，显式项目与 CLI 保留真实启动", () =>
+            {
+                Assert(LauncherOptions.Parse(new string[0], defaultToPreview: true).Preview);
+                var darkPreview = LauncherOptions.Parse(new[] { "--dark" }, defaultToPreview: true);
+                Assert(darkPreview.Preview && darkPreview.Dark);
+                Assert(!LauncherOptions.Parse(new[] { "--project", temporary }, defaultToPreview: true).Preview);
+                Assert(!LauncherOptions.Parse(new[] { "--onedragon" }, defaultToPreview: true).Preview);
+                Assert(LauncherOptions.Parse(new[] { "--preview", "--project", temporary }, defaultToPreview: true).Preview);
+                Assert(!LauncherOptions.Parse(new[] { "--help" }, defaultToPreview: true).Preview);
+                bool rejected = false;
+                try { LauncherOptions.Parse(new[] { "--close-game" }, defaultToPreview: true); }
+                catch (ArgumentException) { rejected = true; }
+                Assert(rejected);
+            });
+            Check("Release 默认真实启动，仅显式 preview 才预览", () =>
+            {
+                Assert(!LauncherOptions.Parse(new string[0]).Preview);
+                Assert(!LauncherOptions.Parse(new[] { "--dark" }).Preview);
+                Assert(LauncherOptions.Parse(new[] { "--preview" }).Preview);
+            });
+            Check("CLI 默认关机延迟与实例透传", () =>
+            {
+                var options = LauncherOptions.Parse(new[] { "-o", "-s", "-i", "1,2", "-c" });
+                Assert(options.ShutdownSeconds == 60 && options.Instance == "1,2");
+                Assert(options.GetPythonArguments().SequenceEqual(new[] { "--onedragon", "--instance", "1,2", "--close-game", "--shutdown", "60" }));
+            });
+            Check("CLI 等号参数、零秒和带空格路径", () =>
+            {
+                var options = LauncherOptions.Parse(new[] { "--onedragon", "--shutdown=0", "--project=" + temporary });
+                Assert(options.ShutdownSeconds == 0 && options.ProjectDirectory == temporary);
+            });
+            Check("CLI 非法组合与缺失参数拒绝", () =>
+            {
+                Reject(new[] { "--close-game" }); Reject(new[] { "--instance" }); Reject(new[] { "-o", "-s", "abc" });
+                Reject(new[] { "-o", "--shutdown=-1" }); Reject(new[] { "--preview", "-o" }); Reject(new[] { "--unknown" });
+                Reject(new[] { "--preview=true" }); Reject(new[] { "--project=" });
+            });
+            Check("Windows 参数转义往返（空格、中文、换行、引号、尾斜杠）", () =>
+            {
+                string[] values = { "", "normal", "中文 路径", @"D:\folder with spaces\", "a\"b", "first\nsecond", "\\\"", "\\\\" };
+                Assert(Split("app.exe " + CommandLine.Join(values)).Skip(1).SequenceEqual(values));
+            });
+
+            string project = Path.Combine(temporary, "ZenlessZoneZero-OneDragon-main");
+            Directory.CreateDirectory(Path.Combine(project, "src", "zzz_od"));
+            string venv = Path.Combine(project, ".venv", "Scripts");
+            Directory.CreateDirectory(venv);
+            File.Copy(typeof(Program).Assembly.Location, Path.Combine(venv, "python.exe"));
+            LaunchEnvironment environment = null;
+            Check("源码子目录识别与工作目录定位", () =>
+            {
+                string binary = Path.Combine(temporary, "launcher", "bin", "Debug");
+                Directory.CreateDirectory(binary);
+                environment = LaunchEnvironment.Resolve(null, binary, temporary);
+                Assert(environment.ProjectDirectory == project && environment.Executable == Path.Combine(venv, "python.exe") && !environment.UseUv);
+            });
+            Check("显式项目路径优先且无效路径不静默回退", () =>
+            {
+                Assert(LaunchEnvironment.Resolve(project, temporary, temporary).ProjectDirectory == project);
+                bool failed = false;
+                try { LaunchEnvironment.Resolve(temporary, project, project); } catch (DirectoryNotFoundException) { failed = true; }
+                Assert(failed);
+            });
+            Check("GUI 命令、UTF-8、PYTHONPATH 与工作目录", () =>
+            {
+                var info = PythonRunner.CreateStartInfo(environment, LauncherOptions.Parse(new string[0]));
+                var arguments = Split("app.exe " + info.Arguments).Skip(1).ToArray();
+                Assert(arguments.SequenceEqual(new[] { "-u", "-c", PythonRunner.GuiBootstrap }));
+                Assert(info.WorkingDirectory == project && info.EnvironmentVariables["PYTHONUTF8"] == "1");
+                Assert(info.EnvironmentVariables["PYTHONPATH"].StartsWith(Path.Combine(project, "src")));
+                Assert(info.CreateNoWindow && info.RedirectStandardError && info.RedirectStandardOutput && !info.UseShellExecute);
+            });
+            Check("CLI 模块与参数透传", () =>
+            {
+                var info = PythonRunner.CreateStartInfo(environment, LauncherOptions.Parse(new[] { "-o", "-i", "1,2", "-s", "90" }));
+                Assert(Split("app.exe " + info.Arguments).Skip(1).SequenceEqual(new[] { "-u", "-m", "zzz_od.win_exe.launcher", "--onedragon", "--instance", "1,2", "--shutdown", "90" }));
+            });
+            Check("uv 本地环境回退及 frozen 参数", () =>
+            {
+                string uvRoot = Path.Combine(temporary, "uv project");
+                Directory.CreateDirectory(Path.Combine(uvRoot, "src", "zzz_od"));
+                Directory.CreateDirectory(Path.Combine(uvRoot, ".install", "uv"));
+                File.WriteAllText(Path.Combine(uvRoot, ".install", "uv", "uv.exe"), "fixture");
+                var uv = LaunchEnvironment.Resolve(uvRoot, temporary, temporary);
+                Assert(uv.UseUv);
+                var info = PythonRunner.CreateStartInfo(uv, LauncherOptions.Parse(new string[0]));
+                Assert(Split("app.exe " + info.Arguments).Skip(1).Take(3).SequenceEqual(new[] { "run", "--frozen", "python" }));
+            });
+            Check("ANSI CSI/OSC 清除与中文保留", () =>
+                Assert(LauncherLog.Clean("\x1b[32m中文\x1b[0m\r\x1b]0;title\x07 text") == "中文 text"));
+            Check("启动阶段识别", () =>
+            {
+                Assert(LaunchStage.FromLog("目录核验通过").Progress == 15);
+                Assert(LaunchStage.FromLog("开始配置环境变量").Progress == 30);
+                Assert(LaunchStage.FromLog("同步代码仓库").Progress == 45);
+                Assert(LaunchStage.FromLog("等待主界面弹出").Progress == 85);
+                Assert(LaunchStage.FromLog("普通日志") == null);
+            });
+            Check("日志并发写入、增量与容量限制", () =>
+            {
+                var log = new LauncherLog();
+                var original = Console.Out;
+                try
+                {
+                    Console.SetOut(TextWriter.Null);
+                    log.Write("initial");
+                    long cursor = 0, first = 0; bool reset;
+                    Assert(log.ReadSince(ref cursor, ref first, out reset).Contains("initial") && !reset);
+                    Parallel.For(0, 11000, i => log.Write("行 " + i));
+                    string text = log.ReadSince(ref cursor, ref first, out reset);
+                    Assert(reset && text.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Length == 10000);
+                    Assert(log.ReadSince(ref cursor, ref first, out reset) == "");
+                    log.Write("new line after trimming");
+                    Assert(log.ReadSince(ref cursor, ref first, out reset).Contains("new line after trimming") && reset);
+                }
+                finally { Console.SetOut(original); }
+            });
+            Check("真实子进程管道：中文双流、尾部排空、错误一次通知与退出码", () =>
+            {
+                var log = new LauncherLog();
+                int errors = 0; int stages = 0;
+                var original = Console.Out;
+                try
+                {
+                    Console.SetOut(TextWriter.Null);
+                    using (var runner = new PythonRunner(log))
+                    {
+                        runner.ErrorDetected += () => System.Threading.Interlocked.Increment(ref errors);
+                        runner.StageChanged += stage => System.Threading.Interlocked.Increment(ref stages);
+                        runner.Start(environment, LauncherOptions.Parse(new string[0]));
+                        Assert(runner.Completion.Wait(15000));
+                        Assert(runner.Completion.Result == 7 && errors == 1 && stages == 3);
+                        string text = log.Snapshot();
+                        Assert(text.Contains("标准输出 中文 299") && text.Contains("标准错误 中文 299") && text.Contains("最后一行：输出已完整读取"));
+                    }
+                }
+                finally { Console.SetOut(original); }
+            });
+            Console.WriteLine("PASS: " + passed + " checks");
+            return 0;
+        }
+        catch (Exception exception) { Console.Error.WriteLine(exception); return 1; }
+        finally
+        {
+            string root = Path.GetFullPath(temporary);
+            string prefix = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (root.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && Path.GetFileName(root).StartsWith("OneDragon WPF tests 中文 ")) Directory.Delete(root, true);
+        }
+    }
+
+    private static void Check(string name, Action test) { test(); passed++; Console.WriteLine("PASS " + name); }
+    private static void Assert(bool value) { if (!value) throw new Exception("Assertion failed"); }
+    private static void Reject(string[] args)
+    {
+        bool failed = false;
+        try { LauncherOptions.Parse(args); } catch (ArgumentException) { failed = true; }
+        Assert(failed);
+    }
+    private static string[] Split(string command)
+    {
+        int count;
+        IntPtr pointer = CommandLineToArgvW(command, out count);
+        if (pointer == IntPtr.Zero) throw new Exception("CommandLineToArgvW failed");
+        try
+        {
+            var args = new string[count];
+            for (int i = 0; i < count; i++) args[i] = Marshal.PtrToStringUni(Marshal.ReadIntPtr(pointer, i * IntPtr.Size));
+            return args;
+        }
+        finally { LocalFree(pointer); }
+    }
+}

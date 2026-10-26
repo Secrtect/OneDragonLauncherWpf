@@ -1,0 +1,9 @@
+.vs/
+**/bin/
+**/obj/
+tests/single-file-bin/
+artifacts/
+packages/
+UpgradeLog*.htm
+*.user
+*.suo
