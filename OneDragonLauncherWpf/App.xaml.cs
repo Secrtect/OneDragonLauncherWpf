@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
+using Microsoft.Win32;
 using OneDragonLauncherWpf.Services;
 using Wpf.Ui.Appearance;
 
@@ -37,6 +38,7 @@ namespace OneDragonLauncherWpf
                 return;
             }
             ApplyTheme(options.Dark || ApplicationThemeManager.GetSystemTheme() == SystemTheme.Dark);
+            SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
             if (options.OneDragon)
             {
                 await RunCliAsync(options);
@@ -82,12 +84,28 @@ namespace OneDragonLauncherWpf
             else MessageBox.Show(message, "OneDragon 启动器", MessageBoxButton.OK, error ? MessageBoxImage.Error : MessageBoxImage.Information);
         }
 
+        private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+        {
+            if (Dispatcher.HasShutdownStarted) return;
+            // Refresh only accents, preserving the selected theme (including --dark).
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (!Dispatcher.HasShutdownStarted) ApplicationAccentColorManager.ApplySystemAccent();
+            }));
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+            base.OnExit(e);
+        }
+
         private void ApplyTheme(bool dark)
         {
             var theme = dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
             Resources["LauncherTitleBarTheme"] = theme;
             ApplicationThemeManager.Apply(theme, Wpf.Ui.Controls.WindowBackdropType.None, false);
-            ApplicationAccentColorManager.Apply(Color.FromRgb(0, 103, 192), theme, false);
+            ApplicationAccentColorManager.ApplySystemAccent();
             if (!dark) return;
             Resources["LauncherBackgroundBrush"] = new LinearGradientBrush(Color.FromRgb(32, 38, 43), Color.FromRgb(29, 35, 37), 45);
             Resources["LauncherMutedBrush"] = new SolidColorBrush(Color.FromRgb(186, 190, 197));

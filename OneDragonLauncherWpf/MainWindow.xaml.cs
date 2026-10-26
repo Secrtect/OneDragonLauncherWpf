@@ -15,12 +15,14 @@ namespace OneDragonLauncherWpf
         private readonly LauncherOptions options;
         private readonly LauncherLog log = new LauncherLog();
         private readonly LauncherViewModel model = new LauncherViewModel();
+        private readonly TaskCompletionSource<bool> closeRequested = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         private PythonRunner runner;
         private TerminalWindow terminal;
         private bool busy;
         private bool dismissed;
         private bool ready;
         private bool started;
+        private bool startupProblem;
 
         public MainWindow() : this(LauncherOptions.Parse(new[] { "--preview" })) { }
 
@@ -71,9 +73,15 @@ namespace OneDragonLauncherWpf
                 }
                 runner = new PythonRunner(log);
                 runner.StageChanged += stage => Dispatch(() => { if (!ready && !dismissed) model.Apply(stage); });
-                runner.ErrorDetected += () => Dispatch(() => { if (!dismissed && !ready) OpenLog(); });
+                runner.ErrorDetected += () => Dispatch(() =>
+                {
+                    if (!dismissed && !ready) { startupProblem = true; OpenLog(); }
+                });
                 runner.Start(environment, options);
                 await WatchStartupAsync();
+                if (dismissed || (ready && !startupProblem)) return;
+                await Task.WhenAny(runner.Completion, closeRequested.Task);
+                if (dismissed) return;
                 int exitCode = await runner.Completion;
                 if (!dismissed && exitCode != 0) ShowFailure("Python 启动失败", "Python 退出码: " + exitCode + "，请查看日志。");
                 else if (!ready && !dismissed) ShowFailure("主程序尚未就绪", "Python 已退出，未检测到主界面，请查看日志。");
@@ -88,7 +96,7 @@ namespace OneDragonLauncherWpf
             {
                 busy = false;
                 runner?.Dispose();
-                if (dismissed || (ready && (terminal == null || !terminal.IsVisible))) Application.Current.Shutdown();
+                if (dismissed) Application.Current.Shutdown();
             }
         }
 
@@ -103,8 +111,16 @@ namespace OneDragonLauncherWpf
                 if (dismissed) return;
                 if (found)
                 {
+                    startupProblem |= runner.HasError;
                     ready = true;
-                    log.Write("[窗口监视] 检测到本次启动的 OneDragon GUI，关闭启动器窗口。");
+                    if (startupProblem)
+                    {
+                        model.Fail("主界面已启动，请检查启动日志", "启动期间出现错误或等待超时，窗口保留供查看。");
+                        log.Write("[窗口监视] 已检测到主界面；启动期间存在异常，保留窗口。可手动关闭，不影响 Python。");
+                        OpenLog();
+                        return;
+                    }
+                    log.Write("[窗口监视] 检测到本次启动的 OneDragon GUI，退出启动器。");
                     Close();
                     return;
                 }
@@ -112,6 +128,7 @@ namespace OneDragonLauncherWpf
                 if (!timeoutReported && timer.Elapsed >= TimeSpan.FromSeconds(30))
                 {
                     timeoutReported = true;
+                    startupProblem = true;
                     model.StatusMessage = "启动耗时较长，正在等待主界面...";
                     model.StepText = "已等待 30 秒，可查看日志了解进度";
                     log.Write("[窗口监视] 30 秒内尚未检测到主界面，将继续等待；请查看日志确认更新或环境安装进度。");
@@ -142,11 +159,7 @@ namespace OneDragonLauncherWpf
             if (terminal == null)
             {
                 terminal = new TerminalWindow(log) { Owner = this };
-                terminal.Closed += (sender, e) =>
-                {
-                    terminal = null;
-                    if (ready && !busy) Application.Current.Shutdown();
-                };
+                terminal.Closed += (sender, e) => terminal = null;
             }
             terminal.Show();
             terminal.Activate();
@@ -154,11 +167,11 @@ namespace OneDragonLauncherWpf
 
         protected override void OnClosing(CancelEventArgs e)
         {
-            // Keep draining the redirected pipes while Python is alive. Closing the UI must
-            // not give the Python process BrokenPipeError or terminate the running automation.
+            // Python owns the output relay, so closing WPF does not break child output.
             if (busy)
             {
                 dismissed = true;
+                closeRequested.TrySetResult(true);
                 terminal?.Close();
             }
             base.OnClosing(e);

@@ -1,4 +1,4 @@
-param([switch]$SkipTests, [switch]$SkipArchive)
+﻿param([switch]$SkipTests, [switch]$SkipArchive)
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
 $locator = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
@@ -22,7 +22,7 @@ if ($missingPackages.Count -gt 0) {
     if ($LASTEXITCODE -ne 0) { throw 'NuGet 程序包还原失败。' }
 }
 
-& $builder $launcherProject /t:Build /p:Configuration=Release /nologo /v:minimal
+& $builder $launcherProject /t:Build /p:Configuration=Release /p:Platform=x64 /nologo /v:minimal
 if ($LASTEXITCODE -ne 0) { throw 'Release 构建失败。' }
 if (-not $SkipTests) {
     & $builder (Join-Path $projectRoot 'tests\Launcher.Tests.csproj') /t:Build /nologo /v:minimal
@@ -31,7 +31,7 @@ if (-not $SkipTests) {
     if ($LASTEXITCODE -ne 0) { throw '后端测试失败。' }
 }
 
-$releaseDirectory = Join-Path $projectRoot 'OneDragonLauncherWpf\bin\Release'
+$releaseDirectory = Join-Path $projectRoot 'OneDragonLauncherWpf\bin\x64\Release'
 $artifactDirectory = Join-Path $projectRoot 'artifacts'
 New-Item -ItemType Directory -Path $artifactDirectory -Force | Out-Null
 $configurationPath = Join-Path $releaseDirectory 'OneDragonLauncherWpf.exe.config'

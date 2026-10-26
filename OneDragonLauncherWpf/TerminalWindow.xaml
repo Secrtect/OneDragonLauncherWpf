@@ -17,7 +17,7 @@
                      ButtonsForeground="{DynamicResource TextFillColorPrimaryBrush}"
                      ShowMinimize="False" ShowMaximize="False" CanMaximize="False" ForceShutdown="False">
             <ui:TitleBar.Icon>
-                <ui:FontIcon Glyph="&gt;_" FontFamily="Consolas" FontSize="16" Foreground="#0067C0" />
+                <ui:FontIcon Glyph="&gt;_" FontFamily="Consolas" FontSize="16" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
         <Grid Grid.Row="1" Margin="16,6,16,16">
@@ -37,7 +37,7 @@
             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
                 <ui:Button x:Name="CopyButton" Content="复制日志" Width="110" Margin="0,0,8,0"
                            Style="{StaticResource LauncherButton}" Click="CopyLog_Click" />
-                <ui:Button Content="关闭" Appearance="Primary" Foreground="White" Background="#0067C0" Width="80"
+                <ui:Button Content="关闭" Appearance="Primary" Width="80"
                            Style="{StaticResource LauncherButton}" Click="CloseLog_Click" />
             </StackPanel>
         </Grid>

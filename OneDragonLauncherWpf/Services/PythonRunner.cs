@@ -17,11 +17,67 @@ namespace OneDragonLauncherWpf.Services
         public event Action ErrorDetected;
         public Task<int> Completion { get; private set; }
         public int ProcessId { get { return process.Id; } }
+        public bool HasError { get { return Volatile.Read(ref reportedError) != 0; } }
         private static readonly Regex ErrorPattern = new Regex(
             @"\bERROR\b|\bCRITICAL\b|Traceback \(most recent call last\)|\b\w*(?:Error|Exception):", RegexOptions.Compiled);
 
-        // Preserve the original piped entry point. Only shim colorama when it is actually absent.
-        public const string GuiBootstrap = @"import sys, types
+        // Keep the pipe readers inside the existing Python process. All descendants inherit
+        // these local pipes, not the WPF pipes. After WPF exits, the readers discard output.
+        public const string GuiOutputBridge = @"import os, sys, threading, atexit
+if os.name == 'nt':
+    import ctypes, msvcrt
+    _set_std_handle = ctypes.WinDLL('kernel32', use_last_error=True).SetStdHandle
+    _set_std_handle.argtypes = [ctypes.c_ulong, ctypes.c_void_p]
+    _set_std_handle.restype = ctypes.c_int
+def _publish_handle(fd):
+    if os.name == 'nt' and not _set_std_handle(ctypes.c_ulong(-10 - fd), msvcrt.get_osfhandle(fd)):
+        raise ctypes.WinError(ctypes.get_last_error())
+def _relay_output(source, target):
+    try:
+        while True:
+            data = os.read(source, 8192)
+            if not data:
+                break
+            if target is not None:
+                try:
+                    while data:
+                        data = data[os.write(target, data):]
+                except OSError:
+                    os.close(target)
+                    target = None
+    finally:
+        os.close(source)
+        if target is not None:
+            os.close(target)
+_output_threads = []
+for _fd in (1, 2):
+    _target = os.dup(_fd)
+    _source, _writer = os.pipe()
+    os.dup2(_writer, _fd)
+    os.close(_writer)
+    _publish_handle(_fd)
+    _thread = threading.Thread(target=_relay_output, args=(_source, _target), daemon=True)
+    _thread.start()
+    _output_threads.append(_thread)
+def _finish_output():
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.flush()
+        except (OSError, ValueError):
+            pass
+    # NUL is a device, not a disk file. Release local writers and drain the final output.
+    with open(os.devnull, 'wb') as sink:
+        for fd in (1, 2):
+            os.dup2(sink.fileno(), fd)
+            _publish_handle(fd)
+    for thread in _output_threads:
+        thread.join(timeout=2)
+atexit.register(_finish_output)
+";
+
+        // Both entry points need this before importing the Python launcher.
+        // Only shim colorama when it is actually absent.
+        public const string ColoramaBootstrap = @"import sys, types
 try:
     import colorama
 except ModuleNotFoundError as exc:
@@ -39,8 +95,17 @@ except ModuleNotFoundError as exc:
     m.__getattr__ = lambda name: d
     for name in ['colorama', 'colorama.ansi', 'colorama.ansitowin32', 'colorama.win32', 'colorama.initialise']:
         sys.modules[name] = m
+";
+
+        public const string GuiBootstrap = GuiOutputBridge + ColoramaBootstrap + @"
 from one_dragon.devtools.python_launcher import run_python
 run_python(['zzz_od', 'gui', 'app'], piped=True)
+";
+
+        // WPF already validates arguments and elevates, so skip the pyuac EXE wrapper.
+        // GetPythonArguments always places the launcher-only --onedragon flag first.
+        public const string CliBootstrap = ColoramaBootstrap + @"from one_dragon.devtools.python_launcher import run_python
+run_python(['zzz_od', 'application', 'zzz_application_launcher'], no_windows=False, args=sys.argv[2:], piped=True)
 ";
 
         public PythonRunner(LauncherLog log) { this.log = log; }
@@ -52,7 +117,7 @@ run_python(['zzz_od', 'gui', 'app'], piped=True)
             args.Add("-u");
             if (options.OneDragon)
             {
-                args.AddRange(new[] { "-m", "zzz_od.win_exe.launcher" });
+                args.AddRange(new[] { "-c", CliBootstrap });
                 args.AddRange(options.GetPythonArguments());
             }
             else args.AddRange(new[] { "-c", GuiBootstrap });

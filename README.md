@@ -30,10 +30,12 @@ Visual Studio 选择 **Debug** 后直接按 **F5**，未指定项目时默认进
 - 启动窗口：520 × 300 DIP，原始 Logo、标题、状态、动态进度条和“查看日志”，WPF UI 标题栏与按钮。
 - 日志窗口：580 × 420 DIP，可调整大小；实时显示 UTF-8 标准输出/错误输出、清除 ANSI 控制码、选择与复制日志，支持 Esc 关闭和重新打开。
 - 默认在启动时读取系统深浅色主题，也可用 `--dark` 指定深色。浅色使用参考截图的淡蓝渐变底色；这里没有复用 Slint 的 Mica/窗口 Hook 实现。原生圆角由支持的 Windows 版本提供。
+- 按钮、日志图标和正常进度条使用 WPF UI 动态强调色资源，启动时读取 Windows 强调色，运行期间随系统个性化设置更新；失败进度条使用主题的错误色。强调色更新不改变已选择的深浅色模式。
 - 日志在底部时自动跟随；向上查看或选中文字时停止追尾。内存日志最多保留 10,000 条且不超过 1,048,576 个字符，复制的是当前保留日志。
 - 检测到错误会自动打开日志。等待 30 秒仍未就绪时保留窗口并提示，之后继续监视，不静默隐藏失败。
-- 每 500ms 检查本次启动进程及其子进程的可见窗口。检测到“绝区零 一条龙”主界面后，立即关闭启动窗口及已打开的日志窗口，不切换进度条完成状态、不延迟等待。
-- 启动窗口关闭后，若 Python 仍在运行，启动器会在后台继续读取输出，避免关闭管道导致 Python 出错。Python 退出后释放后台进程；关闭日志窗口不会终止 Python。
+- 每 500ms 检查本次启动进程及其子进程的可见窗口。启动期间没有错误或超时时，检测到“绝区零 一条龙”主界面后立即关闭启动窗口及日志窗口，并彻底退出启动器进程。
+- 启动期间出现错误或等待超过 30 秒时，保留窗口和内存日志供检查；即使主界面随后出现也不自动关闭。可以手动关闭启动窗口，不会终止 Python。
+- GUI 输出由已有 Python 进程内的线程通过内存管道转发。启动器退出后，线程继续读取并丢弃输出，避免 Python 及其子进程管道断开或阻塞；不新增日志文件或中转进程。Python 项目自身的日志策略保持不变。CLI 模式仍等待 Python 退出并返回退出码。
 
 ## 后端兼容
 
@@ -50,7 +52,7 @@ from one_dragon.devtools.python_launcher import run_python
 run_python(['zzz_od', 'gui', 'app'], piped=True)
 ```
 
-只有缺少 colorama 时才使用原版兼容 shim，已安装的 colorama 不会被覆盖。隐藏控制台下的标准输入会立即提供 EOF，避免后端 `input()` 等待一个不存在的交互终端。
+GUI 和 CLI 模式均在导入 Python 启动器前注入 colorama 兼容 shim；只有缺少 colorama 时才启用，已安装的 colorama 不会被覆盖。隐藏控制台下的标准输入会立即提供 EOF，避免后端 `input()` 等待一个不存在的交互终端。
 
 **Python 项目自身的限制**：当前本机 `python_launcher.verify_working_directory()` 会拒绝含空格或中文的项目路径。C# 的参数引用与 UTF-8 处理不改变这项后端校验，部署建议使用例如 `D:\ZenlessZoneZero-OneDragon` 的路径。
 
@@ -68,7 +70,7 @@ run_python(['zzz_od', 'gui', 'app'], piped=True)
     --dark                 深色主题
 ```
 
-CLI 模式调用 `python -u -m zzz_od.win_exe.launcher`，透传参数并返回 Python 退出码；需要提权时等待管理员进程并保留退出码。命令行里的关闭游戏和关机行为由 Python 后端执行。
+CLI 模式通过 `python -u -c` 先执行 colorama 兼容注入，再调用 `run_python(['zzz_od', 'application', 'zzz_application_launcher'], no_windows=False, args=..., piped=True)`，将 `--onedragon` 之外的后端参数透传并返回 Python 退出码。参数校验和管理员提权由 WPF 负责，无需导入依赖 pyuac 的 Python EXE 包装入口；需要提权时等待管理员进程并保留退出码。命令行里的关闭游戏和关机行为由 Python 后端执行。
 
 ## 构建与验证
 
@@ -96,11 +98,15 @@ CLI 模式调用 `python -u -m zzz_od.win_exe.launcher`，透传参数并返回 
 
 Release 使用 `FodyWeavers.xml` 配置的 Costura 将托管依赖嵌入 EXE，设置 `DisableCompression="true"` 关闭压缩，启动时直接从内存加载，省去解压步骤；不嵌入依赖的 PDB。单文件 EXE 约 7.08 MiB。Logo、图标和 XAML 本身已编入应用资源。Debug 保留普通 DLL 输出，便于 F5 调试。
 
-当前 `App.config` 只有 CLR 启动声明，单文件分发不需要它。若将来增加绑定重定向或其他外部配置，构建脚本会停止打包并提示检查，避免悄悄丢弃配置。`bin/Release` 中剩余的 PDB、XML 文档和配置文件是构建输出，不属于单文件发布包。
+`build.ps1` 固定构建 Release x64，生成的 EXE 需要 64 位 Windows。当前 `App.config` 只有 CLR 启动声明，单文件分发不需要它。若将来增加绑定重定向或其他外部配置，构建脚本会停止打包并提示检查，避免悄悄丢弃配置。`bin/x64/Release` 中剩余的 PDB、XML 文档和配置文件是构建输出，不属于单文件发布包。
 
 Costura 只打包启动器的托管依赖，**不会把 .NET Framework、Python 解释器、一条龙源码、虚拟环境或 uv 打入 EXE**。这些运行要求与之前相同。
 
 测试涵盖命令行校验、Windows 参数引用、源码目录与执行器选择、uv frozen 参数、中文/ANSI 日志、容量上限、并发写入，以及模拟子进程的双路输出排空、错误通知与退出码。测试不调用真实 Python 自动化、不操作游戏。
+
+有真实 Python 解释器时，可额外运行 `python tests/OutputBridgeSmoke.py`：验证启动器管道关闭后 Python 及其子进程仍能大量输出，以及启动失败时中文日志、异常堆栈、尾部输出和退出码完整保留。此检查不依赖一条龙模块，不新增运行日志文件。
+
+运行 `python tests/BootstrapSmoke.py` 可验证 GUI/CLI 在缺少 colorama 时的兼容注入、已安装模块不被覆盖、模块内部缺失依赖正常报错，以及 CLI 参数和退出码传递；使用隔离的模拟模块，不启动游戏。
 
 单文件检查会将 EXE 独自复制到一个临时空目录：直接启动浅色/深色预览并正常关闭，再验证主窗口、日志窗口和全部六个运行依赖可以加载，以及嵌入资源未压缩；目录中没有 DLL 或配置文件。检查结束会清理临时目录。
 

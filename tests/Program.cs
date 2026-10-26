@@ -104,10 +104,10 @@ internal static class Program
                 Assert(info.EnvironmentVariables["PYTHONPATH"].StartsWith(Path.Combine(project, "src")));
                 Assert(info.CreateNoWindow && info.RedirectStandardError && info.RedirectStandardOutput && !info.UseShellExecute);
             });
-            Check("CLI 模块与参数透传", () =>
+            Check("CLI 注入引导脚本与参数透传", () =>
             {
                 var info = PythonRunner.CreateStartInfo(environment, LauncherOptions.Parse(new[] { "-o", "-i", "1,2", "-s", "90" }));
-                Assert(Split("app.exe " + info.Arguments).Skip(1).SequenceEqual(new[] { "-u", "-m", "zzz_od.win_exe.launcher", "--onedragon", "--instance", "1,2", "--shutdown", "90" }));
+                Assert(Split("app.exe " + info.Arguments).Skip(1).SequenceEqual(new[] { "-u", "-c", PythonRunner.CliBootstrap, "--onedragon", "--instance", "1,2", "--shutdown", "90" }));
             });
             Check("uv 本地环境回退及 frozen 参数", () =>
             {
@@ -119,6 +119,8 @@ internal static class Program
                 Assert(uv.UseUv);
                 var info = PythonRunner.CreateStartInfo(uv, LauncherOptions.Parse(new string[0]));
                 Assert(Split("app.exe " + info.Arguments).Skip(1).Take(3).SequenceEqual(new[] { "run", "--frozen", "python" }));
+                var cli = PythonRunner.CreateStartInfo(uv, LauncherOptions.Parse(new[] { "-o", "-c", "-s", "0" }));
+                Assert(Split("app.exe " + cli.Arguments).Skip(1).SequenceEqual(new[] { "run", "--frozen", "python", "-u", "-c", PythonRunner.CliBootstrap, "--onedragon", "--close-game", "--shutdown", "0" }));
             });
             Check("ANSI CSI/OSC 清除与中文保留", () =>
                 Assert(LauncherLog.Clean("\x1b[32m中文\x1b[0m\r\x1b]0;title\x07 text") == "中文 text"));

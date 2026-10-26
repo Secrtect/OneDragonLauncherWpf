@@ -41,8 +41,19 @@
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
             <ProgressBar Grid.Row="6" Minimum="0" Maximum="100" Value="{Binding Progress}"
                          IsIndeterminate="{Binding IsIndeterminate}" Height="4"
-                         Foreground="{Binding ProgressBrush}" Background="#30000000"
-                         AutomationProperties.Name="启动进度" />
+                         Background="{DynamicResource ControlStrongFillColorDefaultBrush}"
+                         AutomationProperties.Name="启动进度">
+                <ProgressBar.Style>
+                    <Style TargetType="ProgressBar" BasedOn="{StaticResource {x:Type ProgressBar}}">
+                        <Setter Property="Foreground" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasFailed}" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ProgressBar.Style>
+            </ProgressBar>
             <Grid Grid.Row="8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -52,7 +63,7 @@
                 <TextBlock Text="{Binding StepText}" ToolTip="{Binding StepText}" FontSize="12"
                            Foreground="{DynamicResource LauncherMutedBrush}" VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis" />
-                <ui:Button Grid.Column="2" Content="查看日志" Appearance="Primary" Foreground="White" Background="#0067C0"
+                <ui:Button Grid.Column="2" Content="查看日志" Appearance="Primary"
                            MinWidth="88" HorizontalAlignment="Right"
                            Style="{StaticResource LauncherButton}" Click="OpenLog_Click" />
             </Grid>
