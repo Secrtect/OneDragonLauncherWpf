@@ -84,9 +84,15 @@ CLI 模式调用 `python -u -m zzz_od.win_exe.launcher`，透传参数并返回 
 
 ### GitHub Actions 自动打包
 
+正式发布使用 **Release Windows ZIP** 工作流：在 GitHub 的 Windows 虚拟机上还原依赖、编译 Release EXE 并运行测试，然后调用 PowerShell `Compress-Archive` 压缩，最后将 `OneDragonLauncherWpf-Windows.zip` 上传到 **Releases** 的对应版本附件中。整个过程不依赖本地编译产物。
+
+触发方式：在 **Actions → Release Windows ZIP → Run workflow** 选择要发布的分支，填写新版本号（如 `v1.0.1`）；或者推送 `v1.0.1` 这样的版本标签。手动发布时，尚不存在的标签会指向本次编译的提交；已有标签必须与所选源码提交一致。版本号格式为 `v主版本.次版本.修订版本`。
+
+正式版本在仓库 **Releases → 对应版本 → Assets** 中下载 ZIP，解压后只有 `OneDragonLauncherWpf.exe`。
+
 推送到 `main`、向 `main` 提交 Pull Request 时，`Build Windows ZIP` 工作流会在 GitHub 的 Windows 运行器上执行 `build.ps1 -SkipArchive`，完成依赖还原、Release EXE 构建和全部测试，再单独调用 PowerShell `Compress-Archive` 将 EXE 压缩成 ZIP 并上传。也可以在仓库 **Actions → Build Windows ZIP → Run workflow** 手动触发。本地直接运行 `build.ps1` 仍会自动完成编译、测试和压缩。
 
-下载方式：打开成功的运行记录，在 **Artifacts** 中下载 `OneDragonLauncherWpf-Windows.zip`。ZIP 内只有 `OneDragonLauncherWpf.exe`，下载文件不会再额外套一层 ZIP；产物保留 30 天。
+普通构建的临时产物位于运行记录的 **Artifacts**，保留 30 天；正式发布的 ZIP 位于 **Releases**，不受这个保留期限影响。
 
 Release 使用 `FodyWeavers.xml` 配置的 Costura 将托管依赖嵌入 EXE，设置 `DisableCompression="true"` 关闭压缩，启动时直接从内存加载，省去解压步骤；不嵌入依赖的 PDB。单文件 EXE 约 7.08 MiB。Logo、图标和 XAML 本身已编入应用资源。Debug 保留普通 DLL 输出，便于 F5 调试。
 

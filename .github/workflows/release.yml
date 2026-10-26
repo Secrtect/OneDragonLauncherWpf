@@ -1,0 +1,68 @@
+name: Release Windows ZIP
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release version (for example, v1.0.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Compile EXE, compress ZIP and publish Release
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate release version
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+$') {
+            throw 'Use a version such as v1.0.0.'
+          }
+          $tagCommit = git rev-parse --verify --quiet "refs/tags/$env:RELEASE_TAG^{commit}"
+          if ($LASTEXITCODE -eq 0) {
+            $sourceCommit = git rev-parse HEAD
+            if ($tagCommit -ne $sourceCommit) {
+              throw 'The tag points to another commit. Select that tag when running the workflow, or use a new version.'
+            }
+          }
+          exit 0
+
+      - name: Build Release EXE and run tests
+        run: ./build.ps1 -SkipArchive
+
+      - name: Compress EXE to ZIP with PowerShell
+        run: |
+          Compress-Archive -LiteralPath artifacts/OneDragonLauncherWpf.exe `
+            -DestinationPath artifacts/OneDragonLauncherWpf-Windows.zip -Force
+
+      - name: Publish ZIP to GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $sourceCommit = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve the built commit.' }
+          gh release create $env:RELEASE_TAG artifacts/OneDragonLauncherWpf-Windows.zip `
+            --target $sourceCommit --title $env:RELEASE_TAG --generate-notes
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }
