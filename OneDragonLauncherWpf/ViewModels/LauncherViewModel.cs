@@ -8,21 +8,18 @@ namespace OneDragonLauncherWpf.ViewModels
     {
         private string statusMessage = "正在初始化环境并启动 GUI...";
         private string stepText = "检查工作目录与 Python 环境...";
-        private double progress;
-        private bool isIndeterminate = true;
+        private LaunchPhase currentPhase = LaunchPhase.Initializing;
         private bool hasFailed;
         public event PropertyChangedEventHandler PropertyChanged;
         public string StatusMessage { get { return statusMessage; } set { statusMessage = value; Changed(); } }
         public string StepText { get { return stepText; } set { stepText = value; Changed(); } }
-        public double Progress { get { return progress; } set { progress = value; Changed(); } }
-        public bool IsIndeterminate { get { return isIndeterminate; } set { isIndeterminate = value; Changed(); } }
-        public bool HasFailed { get { return hasFailed; } set { hasFailed = value; Changed(); } }
+        public bool HasFailed { get { return hasFailed; } private set { hasFailed = value; Changed(); } }
         private void Changed([CallerMemberName] string property = null) { PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property)); }
 
         public void Apply(LaunchStage stage)
         {
-            if (stage.Progress < Progress) return;
-            Progress = stage.Progress;
+            if (HasFailed || stage.Phase < currentPhase) return;
+            currentPhase = stage.Phase;
             StatusMessage = stage.Status;
             StepText = stage.Step;
         }
@@ -31,8 +28,6 @@ namespace OneDragonLauncherWpf.ViewModels
         {
             StatusMessage = status;
             StepText = detail;
-            IsIndeterminate = false;
-            Progress = 100;
             HasFailed = true;
         }
 

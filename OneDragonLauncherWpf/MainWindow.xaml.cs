@@ -41,7 +41,7 @@ namespace OneDragonLauncherWpf
             started = true;
             if (options.Preview)
             {
-                model.Apply(new LaunchStage(45, "正在同步代码更新...", "Git 代码同步"));
+                model.Apply(LaunchStage.FromLog("正在检查代码更新"));
                 log.Write("[界面预览] 此模式不会请求管理员权限或启动 Python。");
                 log.Write("识别到虚拟环境 Python: <项目目录>\\.venv\\Scripts\\python.exe");
                 log.Write("使用 Python 启动器: one_dragon.devtools.python_launcher");

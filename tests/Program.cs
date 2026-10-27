@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using OneDragonLauncherWpf.Services;
+using OneDragonLauncherWpf.ViewModels;
 
 internal static class Program
 {
@@ -163,11 +164,26 @@ internal static class Program
                 Assert(LauncherLog.Clean("\x1b[32m中文\x1b[0m\r\x1b]0;title\x07 text") == "中文 text"));
             Check("启动阶段识别", () =>
             {
-                Assert(LaunchStage.FromLog("目录核验通过").Progress == 15);
-                Assert(LaunchStage.FromLog("开始配置环境变量").Progress == 30);
-                Assert(LaunchStage.FromLog("同步代码仓库").Progress == 45);
-                Assert(LaunchStage.FromLog("等待主界面弹出").Progress == 85);
+                Assert(LaunchStage.FromLog("目录核验通过").Phase == LaunchPhase.CheckingDirectory);
+                Assert(LaunchStage.FromLog("开始配置环境变量").Phase == LaunchPhase.ConfiguringEnvironment);
+                Assert(LaunchStage.FromLog("同步代码仓库").Phase == LaunchPhase.SyncingCode);
+                Assert(LaunchStage.FromLog("正在同步运行依赖").Phase == LaunchPhase.CheckingDependencies);
+                Assert(LaunchStage.FromLog("等待主界面弹出").Phase == LaunchPhase.StartingGui);
                 Assert(LaunchStage.FromLog("普通日志") == null);
+            });
+            Check("启动阶段不倒退，失败文案不被后续日志覆盖", () =>
+            {
+                var model = new LauncherViewModel();
+                var syncing = LaunchStage.FromLog("同步代码仓库");
+                model.Apply(syncing);
+                model.Apply(LaunchStage.FromLog("目录核验通过"));
+                Assert(model.StatusMessage == syncing.Status && model.StepText == syncing.Step);
+                var dependencies = LaunchStage.FromLog("正在同步运行依赖");
+                model.Apply(dependencies);
+                Assert(model.StatusMessage == dependencies.Status && model.StepText == dependencies.Step && !model.HasFailed);
+                model.Fail("启动失败", "失败详情");
+                model.Apply(LaunchStage.FromLog("等待主界面弹出"));
+                Assert(model.HasFailed && model.StatusMessage == "启动失败" && model.StepText == "失败详情");
             });
             Check("日志并发写入、增量与容量限制", () =>
             {

@@ -39,15 +39,18 @@
             <TextBlock Grid.Row="4" Text="{Binding StatusMessage}" FontSize="14"
                        Foreground="{DynamicResource LauncherMutedBrush}"
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
-            <ProgressBar Grid.Row="6" Minimum="0" Maximum="100" Value="{Binding Progress}"
-                         IsIndeterminate="{Binding IsIndeterminate}" Height="4"
+            <ProgressBar x:Name="StartupProgressBar" Grid.Row="6" Minimum="0" Maximum="100" Height="4"
                          Background="{DynamicResource ControlStrongFillColorDefaultBrush}"
                          AutomationProperties.Name="启动进度">
                 <ProgressBar.Style>
                     <Style TargetType="ProgressBar" BasedOn="{StaticResource {x:Type ProgressBar}}">
+                        <Setter Property="IsIndeterminate" Value="True" />
+                        <Setter Property="Value" Value="0" />
                         <Setter Property="Foreground" Value="{DynamicResource AccentFillColorDefaultBrush}" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding HasFailed}" Value="True">
+                                <Setter Property="IsIndeterminate" Value="False" />
+                                <Setter Property="Value" Value="100" />
                                 <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
                             </DataTrigger>
                         </Style.Triggers>

@@ -172,6 +172,18 @@ internal static class SingleFileSmoke
                     Assert(terminal.IsLoaded && terminal.IsVisible, "Log window did not load.");
                     var text = (TextBox)terminal.FindName("LogText");
                     Assert(text.Text.Contains("[界面预览]"), "Log window did not receive preview output.");
+                    var progress = (ProgressBar)main.FindName("StartupProgressBar");
+                    if (phase == 1)
+                    {
+                        Assert(progress.IsIndeterminate, "Startup must use an indeterminate progress bar.");
+                        main.DataContext.GetType().GetMethod("Fail").Invoke(main.DataContext, new object[] { "模拟失败", "仅验证界面状态" });
+                        phase++;
+                        return;
+                    }
+                    Assert(!progress.IsIndeterminate && progress.Value == progress.Maximum,
+                        "Failure must stop the animation and fill the progress bar.");
+                    Assert(progress.Foreground == main.FindResource("SystemFillColorCriticalBrush"),
+                        "Failure must use the error brush.");
                     foreach (string dependency in embeddedDependencies)
                     {
                         var loaded = Assembly.Load(dependency);
@@ -179,6 +191,7 @@ internal static class SingleFileSmoke
                     }
                     passed = true;
                     Console.WriteLine("PASS packed WPF main/log windows and all six dependencies loaded from memory.");
+                    Console.WriteLine("PASS indeterminate startup and full error bar after failure.");
                     timer.Stop();
                     app.Shutdown();
                 }
