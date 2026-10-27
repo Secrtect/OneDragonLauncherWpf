@@ -13,6 +13,8 @@ namespace OneDragonLauncherWpf.Services
         public bool OneDragon { get; private set; }
         public bool CloseGame { get; private set; }
         public ulong? ShutdownSeconds { get; private set; }
+        public bool Hibernate { get; private set; }
+        public bool Sleep { get; private set; }
         public string Instance { get; private set; }
         public string ProjectDirectory { get; private set; }
         public bool Preview { get; private set; }
@@ -24,10 +26,13 @@ namespace OneDragonLauncherWpf.Services
   -o, --onedragon            运行一条龙命令行模式
   -c, --close-game           完成后关闭游戏（需 --onedragon）
   -s, --shutdown [秒]        完成后关机，默认 60 秒（需 --onedragon）
+      --hibernate           完成后休眠（需 --onedragon）
+      --sleep               完成后睡眠（需 --onedragon）
   -i, --instance 1,2         指定账号实例（需 --onedragon）
       --project <目录>      指定含 src/zzz_od 的 Python 项目目录
       --preview             仅预览界面，不提权、不启动 Python
-      --dark                使用深色主题（默认跟随系统）";
+      --dark                使用深色主题（默认跟随系统）
+关机、休眠、睡眠只能选择一种，可与 --close-game 组合。";
 
         public static LauncherOptions Parse(string[] args, bool defaultToPreview = false)
         {
@@ -46,6 +51,8 @@ namespace OneDragonLauncherWpf.Services
                     case "-v": case "--version": result.Version = true; break;
                     case "-o": case "--onedragon": result.OneDragon = true; break;
                     case "-c": case "--close-game": result.CloseGame = true; break;
+                    case "--hibernate": result.Hibernate = true; break;
+                    case "--sleep": result.Sleep = true; break;
                     case "--preview": result.Preview = true; break;
                     case "--dark": result.Dark = true; break;
                     case "-i": case "--instance": result.Instance = ReadValue(args, ref i, value, token); break;
@@ -62,8 +69,11 @@ namespace OneDragonLauncherWpf.Services
             }
             if (!result.Help && !result.Version)
             {
-                if (!result.OneDragon && (result.CloseGame || result.ShutdownSeconds.HasValue || result.Instance != null))
-                    throw new ArgumentException("--close-game、--shutdown 和 --instance 只能与 --onedragon 一起使用。");
+                if (!result.OneDragon && (result.CloseGame || result.ShutdownSeconds.HasValue || result.Hibernate || result.Sleep || result.Instance != null))
+                    throw new ArgumentException("--close-game、--shutdown、--hibernate、--sleep 和 --instance 只能与 --onedragon 一起使用。");
+                int powerActions = (result.ShutdownSeconds.HasValue ? 1 : 0) + (result.Hibernate ? 1 : 0) + (result.Sleep ? 1 : 0);
+                if (powerActions > 1)
+                    throw new ArgumentException("--shutdown、--hibernate 和 --sleep 不能同时使用，请只选择一种电源动作。");
                 if (result.Preview && result.OneDragon)
                     throw new ArgumentException("--preview 不能与 --onedragon 一起使用。");
                 // Debug UI development should work without a separate Python checkout.
@@ -87,6 +97,8 @@ namespace OneDragonLauncherWpf.Services
             if (Instance != null) { yield return "--instance"; yield return Instance; }
             if (CloseGame) yield return "--close-game";
             if (ShutdownSeconds.HasValue) { yield return "--shutdown"; yield return ShutdownSeconds.Value.ToString(CultureInfo.InvariantCulture); }
+            if (Hibernate) yield return "--hibernate";
+            if (Sleep) yield return "--sleep";
         }
     }
 

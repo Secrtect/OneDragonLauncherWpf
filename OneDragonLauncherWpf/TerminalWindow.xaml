@@ -12,7 +12,7 @@
             <RowDefinition Height="36" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <ui:TitleBar Title="运行终端日志 (Console Output)" Height="36" FontSize="13" FontWeight="SemiBold"
+        <ui:TitleBar Title="运行终端日志 (Console Output)" Height="36" FontSize="14" FontWeight="SemiBold"
                      ApplicationTheme="{DynamicResource LauncherTitleBarTheme}"
                      ButtonsForeground="{DynamicResource TextFillColorPrimaryBrush}"
                      ShowMinimize="False" ShowMaximize="False" CanMaximize="False" ForceShutdown="False">

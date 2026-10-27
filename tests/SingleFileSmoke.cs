@@ -36,7 +36,7 @@ internal static class SingleFileSmoke
         Directory.CreateDirectory(directory);
         try
         {
-            string executable = Path.Combine(directory, "OneDragonLauncherWpf.exe");
+            string executable = Path.Combine(directory, "OneDragon-Launcher.exe");
             File.Copy(Path.GetFullPath(args[0]), executable);
             Assert(Directory.GetFiles(directory).Length == 1, "The isolated folder must contain only the launcher EXE.");
             RunHosted(executable, "--preview", "Light");

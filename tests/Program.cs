@@ -69,6 +69,33 @@ internal static class Program
                 Reject(new[] { "-o", "--shutdown=-1" }); Reject(new[] { "--preview", "-o" }); Reject(new[] { "--unknown" });
                 Reject(new[] { "--preview=true" }); Reject(new[] { "--project=" });
             });
+            Check("CLI 休眠和睡眠可组合关闭游戏与账号实例", () =>
+            {
+                foreach (string power in new[] { "--hibernate", "--sleep" })
+                {
+                    var options = LauncherOptions.Parse(new[] { "-o", power, "-c", "-i", "1,2" });
+                    Assert(options.Hibernate == (power == "--hibernate") && options.Sleep == (power == "--sleep"));
+                    Assert(!options.ShutdownSeconds.HasValue);
+                    Assert(options.GetPythonArguments().SequenceEqual(new[] { "--onedragon", "--instance", "1,2", "--close-game", power }));
+                    Reject(new[] { power });
+                    Reject(new[] { "-o", power + "=true" });
+                    Reject(new[] { "-o", power, "60" });
+                    Reject(new[] { "--preview", "-o", power });
+                }
+            });
+            Check("CLI 电源动作互斥，包括零秒关机和不同参数顺序", () =>
+            {
+                string[] powers = { "--shutdown", "--shutdown=0", "-s", "--hibernate", "--sleep" };
+                foreach (string first in powers)
+                    foreach (string second in powers)
+                    {
+                        bool firstShutdown = first.StartsWith("--shutdown") || first == "-s";
+                        bool secondShutdown = second.StartsWith("--shutdown") || second == "-s";
+                        if (first != second && !(firstShutdown && secondShutdown))
+                            Reject(new[] { "-o", first, second });
+                    }
+                Reject(new[] { "-o", "--shutdown", "--hibernate", "--sleep" });
+            });
             Check("Windows 参数转义往返（空格、中文、换行、引号、尾斜杠）", () =>
             {
                 string[] values = { "", "normal", "中文 路径", @"D:\folder with spaces\", "a\"b", "first\nsecond", "\\\"", "\\\\" };
@@ -108,6 +135,11 @@ internal static class Program
             {
                 var info = PythonRunner.CreateStartInfo(environment, LauncherOptions.Parse(new[] { "-o", "-i", "1,2", "-s", "90" }));
                 Assert(Split("app.exe " + info.Arguments).Skip(1).SequenceEqual(new[] { "-u", "-c", PythonRunner.CliBootstrap, "--onedragon", "--instance", "1,2", "--shutdown", "90" }));
+                foreach (string power in new[] { "--hibernate", "--sleep" })
+                {
+                    var powerInfo = PythonRunner.CreateStartInfo(environment, LauncherOptions.Parse(new[] { "-o", "-c", power }));
+                    Assert(Split("app.exe " + powerInfo.Arguments).Skip(1).SequenceEqual(new[] { "-u", "-c", PythonRunner.CliBootstrap, "--onedragon", "--close-game", power }));
+                }
             });
             Check("uv 本地环境回退及 frozen 参数", () =>
             {
@@ -121,6 +153,11 @@ internal static class Program
                 Assert(Split("app.exe " + info.Arguments).Skip(1).Take(3).SequenceEqual(new[] { "run", "--frozen", "python" }));
                 var cli = PythonRunner.CreateStartInfo(uv, LauncherOptions.Parse(new[] { "-o", "-c", "-s", "0" }));
                 Assert(Split("app.exe " + cli.Arguments).Skip(1).SequenceEqual(new[] { "run", "--frozen", "python", "-u", "-c", PythonRunner.CliBootstrap, "--onedragon", "--close-game", "--shutdown", "0" }));
+                foreach (string power in new[] { "--hibernate", "--sleep" })
+                {
+                    var powerInfo = PythonRunner.CreateStartInfo(uv, LauncherOptions.Parse(new[] { "-o", "-c", power }));
+                    Assert(Split("app.exe " + powerInfo.Arguments).Skip(1).SequenceEqual(new[] { "run", "--frozen", "python", "-u", "-c", PythonRunner.CliBootstrap, "--onedragon", "--close-game", power }));
+                }
             });
             Check("ANSI CSI/OSC 清除与中文保留", () =>
                 Assert(LauncherLog.Clean("\x1b[32m中文\x1b[0m\r\x1b]0;title\x07 text") == "中文 text"));

@@ -53,8 +53,8 @@ jobs:
 
       - name: Compress EXE to ZIP with PowerShell
         run: |
-          Compress-Archive -LiteralPath artifacts/OneDragonLauncherWpf.exe `
-            -DestinationPath artifacts/OneDragonLauncherWpf-Windows.zip -Force
+          Compress-Archive -LiteralPath artifacts/OneDragon-Launcher.exe `
+            -DestinationPath artifacts/OneDragon-Launcher-Windows.zip -Force
 
       - name: Publish ZIP to GitHub Releases
         env:
@@ -63,6 +63,6 @@ jobs:
         run: |
           $sourceCommit = git rev-parse HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve the built commit.' }
-          gh release create $env:RELEASE_TAG artifacts/OneDragonLauncherWpf-Windows.zip `
+          gh release create $env:RELEASE_TAG artifacts/OneDragon-Launcher-Windows.zip `
             --target $sourceCommit --title $env:RELEASE_TAG --generate-notes
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }

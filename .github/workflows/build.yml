@@ -33,13 +33,13 @@ jobs:
 
       - name: Compress EXE to ZIP with PowerShell
         run: |
-          Compress-Archive -LiteralPath artifacts/OneDragonLauncherWpf.exe `
-            -DestinationPath artifacts/OneDragonLauncherWpf-Windows.zip -Force
+          Compress-Archive -LiteralPath artifacts/OneDragon-Launcher.exe `
+            -DestinationPath artifacts/OneDragon-Launcher-Windows.zip -Force
 
       - name: Upload Windows ZIP
         uses: actions/upload-artifact@v7
         with:
-          path: artifacts/OneDragonLauncherWpf-Windows.zip
+          path: artifacts/OneDragon-Launcher-Windows.zip
           archive: false
           if-no-files-found: error
           retention-days: 30

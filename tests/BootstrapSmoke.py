@@ -73,6 +73,13 @@ sys.meta_path.insert(0, MissingColorama())
     assert result.stdout.splitlines()[1] == 'CLI_READY'
     print('PASS: CLI missing colorama, direct entry point, arguments and exit code')
 
+    for power in ['--hibernate', '--sleep']:
+        power_arguments = ['--onedragon', '--instance', '1,2', '--close-game', power]
+        result = run(cli, missing, power_arguments)
+        assert result.returncode == 7, result.stderr
+        assert json.loads(result.stdout.splitlines()[0]) == power_arguments[1:]
+    print('PASS: CLI hibernate and sleep reach the simulated backend')
+
     result = run(gui, missing)
     assert result.returncode == 0 and result.stdout.strip() == 'GUI_READY', result.stderr
     print('PASS: GUI missing colorama still starts through the output bridge')

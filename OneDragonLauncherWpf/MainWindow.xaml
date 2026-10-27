@@ -34,9 +34,9 @@
             </Grid.RowDefinitions>
             <Image Source="Assets/logo.png" Width="68" Height="68"
                    RenderOptions.BitmapScalingMode="HighQuality" />
-            <TextBlock Grid.Row="2" Text="绝区零一条龙" FontSize="22" FontWeight="Bold"
+            <TextBlock Grid.Row="2" Text="绝区零一条龙" FontSize="20" FontWeight="SemiBold"
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
-            <TextBlock Grid.Row="4" Text="{Binding StatusMessage}" FontSize="13"
+            <TextBlock Grid.Row="4" Text="{Binding StatusMessage}" FontSize="14"
                        Foreground="{DynamicResource LauncherMutedBrush}"
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
             <ProgressBar Grid.Row="6" Minimum="0" Maximum="100" Value="{Binding Progress}"

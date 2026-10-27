@@ -7,7 +7,7 @@
     <ProjectGuid>{B1BEC832-8123-4A8D-A352-C114AC18FF55}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <RootNamespace>OneDragonLauncherWpf</RootNamespace>
-    <AssemblyName>OneDragonLauncherWpf</AssemblyName>
+    <AssemblyName>OneDragon-Launcher</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <LangVersion>7.3</LangVersion>
     <ApplicationIcon>Assets\logo-full.ico</ApplicationIcon>

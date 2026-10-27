@@ -34,7 +34,7 @@ if (-not $SkipTests) {
 $releaseDirectory = Join-Path $projectRoot 'OneDragonLauncherWpf\bin\x64\Release'
 $artifactDirectory = Join-Path $projectRoot 'artifacts'
 New-Item -ItemType Directory -Path $artifactDirectory -Force | Out-Null
-$configurationPath = Join-Path $releaseDirectory 'OneDragonLauncherWpf.exe.config'
+$configurationPath = Join-Path $releaseDirectory 'OneDragon-Launcher.exe.config'
 if (Test-Path -LiteralPath $configurationPath) {
     [xml]$configuration = Get-Content -LiteralPath $configurationPath
     $externalSettings = @($configuration.configuration.ChildNodes | Where-Object {
@@ -44,8 +44,8 @@ if (Test-Path -LiteralPath $configurationPath) {
         throw '生成的 exe.config 含运行时设置或绑定重定向，不能静默省略。请先验证这些配置的单文件兼容性。'
     }
 }
-$singleExecutable = Join-Path $artifactDirectory 'OneDragonLauncherWpf.exe'
-Copy-Item -LiteralPath (Join-Path $releaseDirectory 'OneDragonLauncherWpf.exe') -Destination $singleExecutable -Force
+$singleExecutable = Join-Path $artifactDirectory 'OneDragon-Launcher.exe'
+Copy-Item -LiteralPath (Join-Path $releaseDirectory 'OneDragon-Launcher.exe') -Destination $singleExecutable -Force
 if (-not $SkipTests) {
     & $builder (Join-Path $projectRoot 'tests\SingleFile.Smoke.csproj') /t:Build /nologo /v:minimal
     if ($LASTEXITCODE -ne 0) { throw '单文件验证程序构建失败。' }
@@ -54,7 +54,7 @@ if (-not $SkipTests) {
 }
 Write-Host ("单文件: {0} ({1:N2} MiB)" -f $singleExecutable, ((Get-Item -LiteralPath $singleExecutable).Length / 1MB))
 if (-not $SkipArchive) {
-    $archivePath = Join-Path $artifactDirectory 'OneDragonLauncherWpf-Windows.zip'
+    $archivePath = Join-Path $artifactDirectory 'OneDragon-Launcher-Windows.zip'
     Compress-Archive -LiteralPath $singleExecutable -DestinationPath $archivePath -Force
     Write-Host "已生成: $archivePath"
 }

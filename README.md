@@ -6,10 +6,10 @@
 
 需要 Windows 10/11、.NET Framework 4.7.2 或更高版本，以及已经安装好的一条龙 Python 项目与运行环境。
 
-发布单文件位于 **`artifacts/OneDragonLauncherWpf.exe`**，ZIP 包 `artifacts/OneDragonLauncherWpf-Windows.zip` 中也只有这个 EXE。部署时只需复制这个 EXE 到一条龙项目根目录（与 `src`、`.venv`、`.install` 同级），不需要随附 WPF UI DLL 或 `.exe.config`。也可以保留启动器在独立目录，通过参数指定项目：
+发布单文件位于 **`artifacts/OneDragon-Launcher.exe`**，ZIP 包 `artifacts/OneDragon-Launcher-Windows.zip` 中也只有这个 EXE。部署时只需复制这个 EXE 到一条龙项目根目录（与 `src`、`.venv`、`.install` 同级），不需要随附 WPF UI DLL 或 `.exe.config`。也可以保留启动器在独立目录，通过参数指定项目：
 
 ```powershell
-.\OneDragonLauncherWpf.exe --project "D:\ZenlessZoneZero-OneDragon"
+.\OneDragon-Launcher.exe --project "D:\ZenlessZoneZero-OneDragon"
 ```
 
 Visual Studio 选择 **Debug** 后直接按 **F5**，未指定项目时默认进入界面预览，不需要 Python 源码或运行环境，也不请求管理员权限。Debug 下单独指定 `--dark` 仍然是预览。
@@ -19,8 +19,8 @@ Visual Studio 选择 **Debug** 后直接按 **F5**，未指定项目时默认进
 也可以显式预览界面，不提权、不运行 Python、不更新代码：
 
 ```powershell
-.\OneDragonLauncherWpf.exe --preview
-.\OneDragonLauncherWpf.exe --preview --dark
+.\OneDragon-Launcher.exe --preview
+.\OneDragon-Launcher.exe --preview --dark
 ```
 
 正常启动时，环境检查通过后会请求管理员权限，保持原版行为。帮助、版本和预览模式不需要管理员权限。
@@ -64,13 +64,25 @@ GUI 和 CLI 模式均在导入 Python 启动器前注入 colorama 兼容 shim；
 -o, --onedragon             一条龙 CLI 模式
 -c, --close-game            运行后关闭游戏，需要 --onedragon
 -s, --shutdown [秒]         运行后关机，默认 60 秒，需要 --onedragon
+    --hibernate            运行后休眠，需要 --onedragon
+    --sleep                运行后睡眠，需要 --onedragon
 -i, --instance 1,2          账号实例，需要 --onedragon
     --project <目录>       Python 项目根目录
     --preview              仅预览界面
     --dark                 深色主题
 ```
 
-CLI 模式通过 `python -u -c` 先执行 colorama 兼容注入，再调用 `run_python(['zzz_od', 'application', 'zzz_application_launcher'], no_windows=False, args=..., piped=True)`，将 `--onedragon` 之外的后端参数透传并返回 Python 退出码。参数校验和管理员提权由 WPF 负责，无需导入依赖 pyuac 的 Python EXE 包装入口；需要提权时等待管理员进程并保留退出码。命令行里的关闭游戏和关机行为由 Python 后端执行。
+`--shutdown`、`--hibernate`、`--sleep` 三选一，可与 `--close-game`、`--instance` 组合。休眠和睡眠参数不接受秒数。使用休眠或睡眠需要 Python 后端版本支持对应参数。
+
+```powershell
+# 运行账号 1、2，完成后关闭游戏并休眠
+.\OneDragon-Launcher.exe -o -i 1,2 -c --hibernate
+
+# 完成后睡眠
+.\OneDragon-Launcher.exe -o --sleep
+```
+
+CLI 模式通过 `python -u -c` 先执行 colorama 兼容注入，再调用 `run_python(['zzz_od', 'application', 'zzz_application_launcher'], no_windows=False, args=..., piped=True)`，将 `--onedragon` 之外的后端参数透传并返回 Python 退出码。参数校验和管理员提权由 WPF 负责，无需导入依赖 pyuac 的 Python EXE 包装入口；需要提权时等待管理员进程并保留退出码。命令行里的关闭游戏、关机、休眠和睡眠行为由 Python 后端执行。
 
 ## 构建与验证
 
@@ -82,15 +94,15 @@ CLI 模式通过 `python -u -c` 先执行 colorama 兼容注入，再调用 `run
 .\build.ps1
 ```
 
-脚本定位 Visual Studio MSBuild，构建 Release、运行 15 组后端检查和单文件启动检查，生成 `artifacts/OneDragonLauncherWpf.exe` 与只包含该 EXE 的 ZIP。测试程序不依赖外部测试框架。
+脚本定位 Visual Studio MSBuild，构建 Release、运行后端检查和单文件启动检查，生成 `artifacts/OneDragon-Launcher.exe` 与只包含该 EXE 的 ZIP。测试程序不依赖外部测试框架。
 
 ### GitHub Actions 自动打包
 
-正式发布使用 **Release Windows ZIP** 工作流：在 GitHub 的 Windows 虚拟机上还原依赖、编译 Release EXE 并运行测试，然后调用 PowerShell `Compress-Archive` 压缩，最后将 `OneDragonLauncherWpf-Windows.zip` 上传到 **Releases** 的对应版本附件中。整个过程不依赖本地编译产物。
+正式发布使用 **Release Windows ZIP** 工作流：在 GitHub 的 Windows 虚拟机上还原依赖、编译 Release EXE 并运行测试，然后调用 PowerShell `Compress-Archive` 压缩，最后将 `OneDragon-Launcher-Windows.zip` 上传到 **Releases** 的对应版本附件中。整个过程不依赖本地编译产物。
 
 触发方式：在 **Actions → Release Windows ZIP → Run workflow** 选择要发布的分支，填写新版本号（如 `v1.0.1`）；或者推送 `v1.0.1` 这样的版本标签。手动发布时，尚不存在的标签会指向本次编译的提交；已有标签必须与所选源码提交一致。版本号格式为 `v主版本.次版本.修订版本`。
 
-正式版本在仓库 **Releases → 对应版本 → Assets** 中下载 ZIP，解压后只有 `OneDragonLauncherWpf.exe`。
+正式版本在仓库 **Releases → 对应版本 → Assets** 中下载 ZIP，解压后只有 `OneDragon-Launcher.exe`。
 
 推送到 `main`、向 `main` 提交 Pull Request 时，`Build Windows ZIP` 工作流会在 GitHub 的 Windows 运行器上执行 `build.ps1 -SkipArchive`，完成依赖还原、Release EXE 构建和全部测试，再单独调用 PowerShell `Compress-Archive` 将 EXE 压缩成 ZIP 并上传。也可以在仓库 **Actions → Build Windows ZIP → Run workflow** 手动触发。本地直接运行 `build.ps1` 仍会自动完成编译、测试和压缩。
 
