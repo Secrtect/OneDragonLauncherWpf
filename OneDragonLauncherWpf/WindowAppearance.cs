@@ -8,16 +8,34 @@ using Wpf.Ui.Appearance;
 
 namespace OneDragonLauncherWpf
 {
+    /// <summary>
+    /// 在原生窗口创建后、首次显示前设置不透明背景和标题栏主题。
+    /// </summary>
     internal static class WindowAppearance
     {
+        /// <summary>
+        /// 设置桌面窗口管理器的窗口属性。
+        /// </summary>
+        /// <param name="window">目标窗口句柄。</param>
+        /// <param name="attribute">需要设置的原生属性编号。</param>
+        /// <param name="value">属性的整数值。</param>
+        /// <param name="size">属性值占用的字节数。</param>
+        /// <returns>原生调用结果；负值表示失败。</returns>
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
 
+        /// <summary>
+        /// 注册原生窗口初始化回调，避免窗口首帧出现透明背景。
+        /// </summary>
+        /// <param name="window">需要设置外观的 WPF 窗口。</param>
         public static void Attach(Window window)
         {
             window.SourceInitialized += OnSourceInitialized;
         }
 
+        /// <summary>
+        /// 设置首帧不透明清屏色和原生深浅色主题，兼容不支持新主题属性的 Windows。
+        /// </summary>
         private static void OnSourceInitialized(object sender, EventArgs e)
         {
             var window = (Window)sender;

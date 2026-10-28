@@ -42,7 +42,11 @@ Visual Studio 选择 **Debug** 后直接按 **F5**，未指定项目时默认进
 
 源码目录查找：显式 `--project` 优先，否则从 EXE 目录向上最多检查五层，以及当前工作目录；支持直接的 `src/zzz_od`，以及 `ZenlessZoneZero-OneDragon`、`ZenlessZoneZero-OneDragon-main` 子目录。
 
-执行器优先级：项目或启动器目录中的 `.venv/Scripts/python.exe`、`.venv/python.exe`、`.install/python/python.exe` → 本地 `.install/uv/uv.exe` 或 `.install/uv.exe` → PATH 中的 uv → PATH 中的 Python。忽略 Windows Store 的 Python 占位别名。
+仅支持已通过一条龙安装器配置好的项目环境。启动前检查目标项目的 `.install/uv/uv.exe`，缺失时提示运行安装器安装或修复环境，即使已有 Python 也不会继续启动。不从 PATH 或启动器所在的其他目录查找 uv/Python。
+
+内置 uv 存在后，优先使用目标项目中的 `.venv/Scripts/python.exe`、`.venv/python.exe`、`.install/python/python.exe` 执行引导代码；没有这些解释器时使用该项目的 `.install/uv/uv.exe run --frozen python`。
+
+后端仍读取安装器保存的 `config/env.yml` 中的 `uv_path`，WPF 不填写或覆盖这个配置。内置 uv 存在不代表配置完整；若后端提示 UV 路径无效，需通过安装器修复。
 
 工作目录固定为实际 Python 项目根目录，注入 `PYTHONPATH`、`PYTHONUNBUFFERED=1`、`PYTHONUTF8=1`、`PYTHONIOENCODING=utf-8`。
 
@@ -58,6 +62,8 @@ GUI 和 CLI 模式均在导入 Python 启动器前注入 colorama 兼容 shim；
 **Python 项目自身的限制**：当前本机 `python_launcher.verify_working_directory()` 会拒绝含空格或中文的项目路径。C# 的参数引用与 UTF-8 处理不改变这项后端校验，部署建议使用例如 `D:\ZenlessZoneZero-OneDragon` 的路径。
 
 ## 命令行
+
+当前版本为 `2.5.6.0`，`--version` 显示 `OneDragon Launcher WPF v2.5.6.0`，取自 `AssemblyVersion`。Windows 文件、应用清单及项目发布版本也使用 `2.5.6.0`。修改版本后需重新构建并替换部署的 EXE；Git 标签不会自动修改程序版本。
 
 ```text
 -h, --help                  帮助

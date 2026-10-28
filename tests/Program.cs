@@ -108,6 +108,8 @@ internal static class Program
             string venv = Path.Combine(project, ".venv", "Scripts");
             Directory.CreateDirectory(venv);
             File.Copy(typeof(Program).Assembly.Location, Path.Combine(venv, "python.exe"));
+            Directory.CreateDirectory(Path.Combine(project, ".install", "uv"));
+            File.WriteAllText(Path.Combine(project, ".install", "uv", "uv.exe"), "fixture");
             LaunchEnvironment environment = null;
             Check("源码子目录识别与工作目录定位", () =>
             {
@@ -142,14 +144,50 @@ internal static class Program
                     Assert(Split("app.exe " + powerInfo.Arguments).Skip(1).SequenceEqual(new[] { "-u", "-c", PythonRunner.CliBootstrap, "--onedragon", "--close-game", power }));
                 }
             });
-            Check("uv 本地环境回退及 frozen 参数", () =>
+            Check("缺少内置 uv 时拒绝 PATH 和启动器目录中的环境", () =>
+            {
+                string incompleteRoot = Path.Combine(temporary, "incomplete");
+                Directory.CreateDirectory(Path.Combine(incompleteRoot, "src", "zzz_od"));
+                string externalTools = Path.Combine(temporary, "external-tools");
+                Directory.CreateDirectory(externalTools);
+                File.WriteAllText(Path.Combine(externalTools, "uv.exe"), "fixture");
+                File.WriteAllText(Path.Combine(externalTools, "python.exe"), "fixture");
+                string originalPath = Environment.GetEnvironmentVariable("PATH");
+                try
+                {
+                    Environment.SetEnvironmentVariable("PATH", externalTools);
+                    bool failed = false;
+                    try { LaunchEnvironment.Resolve(incompleteRoot, project, project); }
+                    catch (FileNotFoundException exception)
+                    {
+                        failed = exception.Message.Contains("安装器") &&
+                            exception.FileName == Path.Combine(incompleteRoot, ".install", "uv", "uv.exe");
+                    }
+                    Assert(failed);
+                }
+                finally { Environment.SetEnvironmentVariable("PATH", originalPath); }
+            });
+            Check("已有项目 Python 仍必须具备指定位置的内置 uv", () =>
+            {
+                string incompleteRoot = Path.Combine(temporary, "python-only");
+                Directory.CreateDirectory(Path.Combine(incompleteRoot, "src", "zzz_od"));
+                Directory.CreateDirectory(Path.Combine(incompleteRoot, ".venv", "Scripts"));
+                File.WriteAllText(Path.Combine(incompleteRoot, ".venv", "Scripts", "python.exe"), "fixture");
+                Directory.CreateDirectory(Path.Combine(incompleteRoot, ".install"));
+                File.WriteAllText(Path.Combine(incompleteRoot, ".install", "uv.exe"), "fixture");
+                bool failed = false;
+                try { LaunchEnvironment.Resolve(incompleteRoot, project, project); }
+                catch (FileNotFoundException exception) { failed = exception.Message.Contains("安装器"); }
+                Assert(failed);
+            });
+            Check("仅使用目标项目的内置 uv，保留 frozen 参数", () =>
             {
                 string uvRoot = Path.Combine(temporary, "uv project");
                 Directory.CreateDirectory(Path.Combine(uvRoot, "src", "zzz_od"));
                 Directory.CreateDirectory(Path.Combine(uvRoot, ".install", "uv"));
                 File.WriteAllText(Path.Combine(uvRoot, ".install", "uv", "uv.exe"), "fixture");
-                var uv = LaunchEnvironment.Resolve(uvRoot, temporary, temporary);
-                Assert(uv.UseUv);
+                var uv = LaunchEnvironment.Resolve(uvRoot, project, temporary);
+                Assert(uv.UseUv && uv.Executable == Path.Combine(uvRoot, ".install", "uv", "uv.exe"));
                 var info = PythonRunner.CreateStartInfo(uv, LauncherOptions.Parse(new string[0]));
                 Assert(Split("app.exe " + info.Arguments).Skip(1).Take(3).SequenceEqual(new[] { "run", "--frozen", "python" }));
                 var cli = PythonRunner.CreateStartInfo(uv, LauncherOptions.Parse(new[] { "-o", "-c", "-s", "0" }));

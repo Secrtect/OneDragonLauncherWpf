@@ -10,6 +10,9 @@ using Wpf.Ui.Controls;
 
 namespace OneDragonLauncherWpf
 {
+    /// <summary>
+    /// 展示启动进度，管理 Python 启动、主界面检测及错误日志。
+    /// </summary>
     public partial class MainWindow : FluentWindow
     {
         private readonly LauncherOptions options;
@@ -24,8 +27,15 @@ namespace OneDragonLauncherWpf
         private bool started;
         private bool startupProblem;
 
+        /// <summary>
+        /// 创建默认预览窗口，供设计器或独立界面预览使用。
+        /// </summary>
         public MainWindow() : this(LauncherOptions.Parse(new[] { "--preview" })) { }
 
+        /// <summary>
+        /// 初始化启动窗口、主题和状态绑定，并注册首次加载处理。
+        /// </summary>
+        /// <param name="options">决定预览模式和实际启动行为的选项。</param>
         public MainWindow(LauncherOptions options)
         {
             this.options = options;
@@ -35,6 +45,9 @@ namespace OneDragonLauncherWpf
             Loaded += OnLoaded;
         }
 
+        /// <summary>
+        /// 窗口首次加载时执行预览或真实启动；失败时保留窗口和日志供检查。
+        /// </summary>
         private async void OnLoaded(object sender, RoutedEventArgs e)
         {
             if (started) return;
@@ -100,6 +113,11 @@ namespace OneDragonLauncherWpf
             }
         }
 
+        /// <summary>
+        /// 监视本次启动的进程及其后代窗口；正常就绪时关闭启动器，超时或出错时保留日志。
+        /// </summary>
+        /// <returns>检测到主界面、后端退出或用户关闭窗口时完成的任务。</returns>
+        /// <remarks>等待超过三十秒只提示并继续监视，不终止 Python 进程。</remarks>
         private async Task WatchStartupAsync()
         {
             var family = new HashSet<uint> { (uint)runner.ProcessId };
@@ -138,11 +156,20 @@ namespace OneDragonLauncherWpf
             }
         }
 
+        /// <summary>
+        /// 在界面线程排队执行操作；调度器已开始关闭时忽略请求。
+        /// </summary>
+        /// <param name="action">需要更新界面的操作。</param>
         private void Dispatch(Action action)
         {
             if (!Dispatcher.HasShutdownStarted) Dispatcher.BeginInvoke(action);
         }
 
+        /// <summary>
+        /// 记录失败原因、更新错误状态并打开日志窗口。
+        /// </summary>
+        /// <param name="status">主窗口显示的错误标题。</param>
+        /// <param name="detail">写入日志并显示在步骤区域的详细原因。</param>
         private void ShowFailure(string status, string detail)
         {
             ready = false;
@@ -152,8 +179,14 @@ namespace OneDragonLauncherWpf
             OpenLog();
         }
 
+        /// <summary>
+        /// 响应查看日志按钮，打开或激活日志窗口。
+        /// </summary>
         private void OpenLog_Click(object sender, RoutedEventArgs e) { OpenLog(); }
 
+        /// <summary>
+        /// 复用已有日志窗口；窗口已关闭时重新创建，并将其置于前台。
+        /// </summary>
         private void OpenLog()
         {
             if (terminal == null)
@@ -165,6 +198,9 @@ namespace OneDragonLauncherWpf
             terminal.Activate();
         }
 
+        /// <summary>
+        /// 标记用户已关闭窗口并通知等待流程结束，不终止 Python 后端。
+        /// </summary>
         protected override void OnClosing(CancelEventArgs e)
         {
             // Python owns the output relay, so closing WPF does not break child output.
@@ -177,6 +213,9 @@ namespace OneDragonLauncherWpf
             base.OnClosing(e);
         }
 
+        /// <summary>
+        /// 窗口关闭且没有启动任务负责清理时，结束 WPF 应用。
+        /// </summary>
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);

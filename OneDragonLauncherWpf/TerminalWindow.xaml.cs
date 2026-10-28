@@ -9,6 +9,9 @@ using Wpf.Ui.Controls;
 
 namespace OneDragonLauncherWpf
 {
+    /// <summary>
+    /// 增量显示启动日志，支持滚动查看、复制和关闭后重新打开。
+    /// </summary>
     public partial class TerminalWindow : FluentWindow
     {
         private readonly LauncherLog log;
@@ -16,6 +19,10 @@ namespace OneDragonLauncherWpf
         private long cursor;
         private long firstSequence;
 
+        /// <summary>
+        /// 初始化日志窗口并设置定时刷新、关闭清理和 Esc 快捷键。
+        /// </summary>
+        /// <param name="log">与启动窗口共享的内存日志缓冲。</param>
         public TerminalWindow(LauncherLog log)
         {
             this.log = log;
@@ -28,6 +35,9 @@ namespace OneDragonLauncherWpf
             PreviewKeyDown += (sender, args) => { if (args.Key == Key.Escape) { Close(); args.Handled = true; } };
         }
 
+        /// <summary>
+        /// 读取新增日志；旧记录被淘汰时重建显示，并保留用户的选择和滚动位置。
+        /// </summary>
         private void RefreshLog()
         {
             bool reset;
@@ -41,6 +51,9 @@ namespace OneDragonLauncherWpf
             else LogText.ScrollToVerticalOffset(offset);
         }
 
+        /// <summary>
+        /// 复制当前保留的日志；剪贴板忙时最多重试三次，并短暂显示复制结果。
+        /// </summary>
         private async void CopyLog_Click(object sender, RoutedEventArgs e)
         {
             CopyButton.IsEnabled = false;
@@ -57,6 +70,9 @@ namespace OneDragonLauncherWpf
             CopyButton.IsEnabled = true;
         }
 
+        /// <summary>
+        /// 关闭日志窗口，不影响启动流程和日志收集。
+        /// </summary>
         private void CloseLog_Click(object sender, RoutedEventArgs e) { Close(); }
     }
 }

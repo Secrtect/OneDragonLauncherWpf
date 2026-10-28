@@ -8,21 +8,42 @@ using System.Threading.Tasks;
 
 namespace OneDragonLauncherWpf.Services
 {
+    /// <summary>
+    /// 启动 Python 引导流程，收集双路输出并发布阶段和错误通知。
+    /// </summary>
     public sealed class PythonRunner : IDisposable
     {
         private readonly LauncherLog log;
         private Process process;
         private int reportedError;
+        /// <summary>
+        /// 输出中识别到启动阶段时触发；订阅者需自行切换到界面线程。
+        /// </summary>
         public event Action<LaunchStage> StageChanged;
+        /// <summary>
+        /// 首次识别到错误日志时触发，后续错误不重复通知。
+        /// </summary>
         public event Action ErrorDetected;
+        /// <summary>
+        /// 启动后等待进程退出及双路输出排空，并返回退出码的任务。
+        /// </summary>
         public Task<int> Completion { get; private set; }
+        /// <summary>
+        /// 已启动的 Python 或 uv 进程标识，用于监视其后代窗口。
+        /// </summary>
         public int ProcessId { get { return process.Id; } }
+        /// <summary>
+        /// 表示输出中是否曾识别到错误，支持跨线程读取。
+        /// </summary>
         public bool HasError { get { return Volatile.Read(ref reportedError) != 0; } }
         private static readonly Regex ErrorPattern = new Regex(
             @"\bERROR\b|\bCRITICAL\b|Traceback \(most recent call last\)|\b\w*(?:Error|Exception):", RegexOptions.Compiled);
 
         // Keep the pipe readers inside the existing Python process. All descendants inherit
         // these local pipes, not the WPF pipes. After WPF exits, the readers discard output.
+        /// <summary>
+        /// 在 Python 进程内转发标准输出和错误输出；WPF 退出后继续排空并丢弃输出，避免后端阻塞。
+        /// </summary>
         public const string GuiOutputBridge = @"import os, sys, threading, atexit
 if os.name == 'nt':
     import ctypes, msvcrt
@@ -77,6 +98,9 @@ atexit.register(_finish_output)
 
         // Both entry points need this before importing the Python launcher.
         // Only shim colorama when it is actually absent.
+        /// <summary>
+        /// 仅在缺少 colorama 时注入最小兼容模块，不覆盖已安装模块或掩盖其内部依赖错误。
+        /// </summary>
         public const string ColoramaBootstrap = @"import sys, types
 try:
     import colorama
@@ -97,6 +121,9 @@ except ModuleNotFoundError as exc:
         sys.modules[name] = m
 ";
 
+        /// <summary>
+        /// 先配置输出转发和 colorama 兼容模块，再调用一条龙 GUI 的 Python 启动入口。
+        /// </summary>
         public const string GuiBootstrap = GuiOutputBridge + ColoramaBootstrap + @"
 from one_dragon.devtools.python_launcher import run_python
 run_python(['zzz_od', 'gui', 'app'], piped=True)
@@ -104,12 +131,26 @@ run_python(['zzz_od', 'gui', 'app'], piped=True)
 
         // WPF already validates arguments and elevates, so skip the pyuac EXE wrapper.
         // GetPythonArguments always places the launcher-only --onedragon flag first.
+        /// <summary>
+        /// 执行命令行引导并透传后端参数；提权由 WPF 完成，不再经过 pyuac 包装入口。
+        /// </summary>
         public const string CliBootstrap = ColoramaBootstrap + @"from one_dragon.devtools.python_launcher import run_python
 run_python(['zzz_od', 'application', 'zzz_application_launcher'], no_windows=False, args=sys.argv[2:], piped=True)
 ";
 
+        /// <summary>
+        /// 创建使用指定日志缓冲的进程执行器。
+        /// </summary>
+        /// <param name="log">用于记录启动信息及进程输出的共享日志。</param>
         public PythonRunner(LauncherLog log) { this.log = log; }
 
+        /// <summary>
+        /// 构造 Python 或 uv 的引导命令、工作目录及 UTF-8 输出环境。
+        /// </summary>
+        /// <param name="environment">已解析并检查的目标项目环境。</param>
+        /// <param name="options">决定 GUI 或命令行模式的启动选项。</param>
+        /// <returns>启用输入输出重定向且不创建控制台窗口的进程配置。</returns>
+        /// <remarks>只设置子进程环境，不改写安装器维护的后端配置。</remarks>
         public static ProcessStartInfo CreateStartInfo(LaunchEnvironment environment, LauncherOptions options)
         {
             var args = new List<string>();
@@ -141,6 +182,13 @@ run_python(['zzz_od', 'application', 'zzz_application_launcher'], no_windows=Fal
             return info;
         }
 
+        /// <summary>
+        /// 启动后端并异步读取标准输出和错误输出，关闭输入以避免隐藏终端等待交互。
+        /// </summary>
+        /// <param name="environment">目标项目及本地执行器。</param>
+        /// <param name="options">本次启动选项。</param>
+        /// <exception cref="InvalidOperationException">无法创建后端子进程。</exception>
+        /// <remarks>每个执行器实例只启动一次；调用成功后可读取 Completion。</remarks>
         public void Start(LaunchEnvironment environment, LauncherOptions options)
         {
             log.Write("项目目录: " + environment.ProjectDirectory);
@@ -165,6 +213,9 @@ run_python(['zzz_od', 'application', 'zzz_application_launcher'], no_windows=Fal
             });
         }
 
+        /// <summary>
+        /// 处理一行输出，记录日志、识别阶段，并确保错误通知只触发一次。
+        /// </summary>
         private void OnOutput(object sender, DataReceivedEventArgs args)
         {
             if (args.Data == null) return;
@@ -175,6 +226,9 @@ run_python(['zzz_od', 'application', 'zzz_application_launcher'], no_windows=Fal
             if (ErrorPattern.IsMatch(clean) && Interlocked.Exchange(ref reportedError, 1) == 0) ErrorDetected?.Invoke();
         }
 
+        /// <summary>
+        /// 释放进程对象持有的本地资源，不主动终止仍在运行的 Python 后端。
+        /// </summary>
         public void Dispose() { process?.Dispose(); }
     }
 }
