@@ -177,6 +177,7 @@
     <Compile Include="Services\LauncherLog.cs" />
     <Compile Include="Services\LaunchStage.cs" />
     <Compile Include="Services\PythonRunner.cs" />
+    <Compile Include="Services\StartupProcess.cs" />
     <Compile Include="Services\WindowsIntegration.cs" />
   </ItemGroup>
   <ItemGroup>

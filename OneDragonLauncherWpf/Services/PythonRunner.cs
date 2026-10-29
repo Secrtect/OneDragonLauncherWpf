@@ -15,11 +15,16 @@ namespace OneDragonLauncherWpf.Services
     {
         private readonly LauncherLog log;
         private Process process;
+        private StartupProcess startupProcess;
         private int reportedError;
         /// <summary>
         /// 输出中识别到启动阶段时触发；订阅者需自行切换到界面线程。
         /// </summary>
         public event Action<LaunchStage> StageChanged;
+        /// <summary>
+        /// 发布已清理控制字符的后端输出；订阅者需自行切换到界面线程。
+        /// </summary>
+        public event Action<string> OutputReceived;
         /// <summary>
         /// 首次识别到错误日志时触发，后续错误不重复通知。
         /// </summary>
@@ -31,7 +36,7 @@ namespace OneDragonLauncherWpf.Services
         /// <summary>
         /// 已启动的 Python 或 uv 进程标识，用于监视其后代窗口。
         /// </summary>
-        public int ProcessId { get { return process.Id; } }
+        public int ProcessId { get { return startupProcess != null ? startupProcess.Id : process.Id; } }
         /// <summary>
         /// 表示输出中是否曾识别到错误，支持跨线程读取。
         /// </summary>
@@ -195,6 +200,12 @@ run_python(['zzz_od', 'application', 'zzz_application_launcher'], no_windows=Fal
             log.Write("Python 源码: " + environment.SourceDirectory);
             log.Write("使用执行器: " + environment.Executable);
             log.Write(options.OneDragon ? "启动一条龙命令行模式..." : "后台启动 Python 启动器与 GUI 界面 (piped=True)...");
+            if (!options.OneDragon)
+            {
+                startupProcess = new StartupProcess(CreateStartInfo(environment, options), OnOutputLine);
+                Completion = ObserveCompletionAsync(startupProcess.Completion);
+                return;
+            }
             process = new Process { StartInfo = CreateStartInfo(environment, options) };
             process.OutputDataReceived += OnOutput;
             process.ErrorDataReceived += OnOutput;
@@ -218,17 +229,35 @@ run_python(['zzz_od', 'application', 'zzz_application_launcher'], no_windows=Fal
         /// </summary>
         private void OnOutput(object sender, DataReceivedEventArgs args)
         {
-            if (args.Data == null) return;
-            string clean = LauncherLog.Clean(args.Data);
+            if (args.Data != null) OnOutputLine(args.Data);
+        }
+
+        private async Task<int> ObserveCompletionAsync(Task<int> completion)
+        {
+            int exitCode = await completion.ConfigureAwait(false);
+            log.Write("Python 进程已退出，退出码: " + exitCode);
+            return exitCode;
+        }
+
+        private void OnOutputLine(string line)
+        {
+            string clean = LauncherLog.Clean(line);
             log.Write(clean);
+            OutputReceived?.Invoke(clean);
             LaunchStage stage = LaunchStage.FromLog(clean);
             if (stage != null) StageChanged?.Invoke(stage);
             if (ErrorPattern.IsMatch(clean) && Interlocked.Exchange(ref reportedError, 1) == 0) ErrorDetected?.Invoke();
         }
 
         /// <summary>
-        /// 释放进程对象持有的本地资源，不主动终止仍在运行的 Python 后端。
+        /// 主界面出现后解除 Job 的退出清理策略，让后端独立运行。
         /// </summary>
-        public void Dispose() { process?.Dispose(); }
+        public void ReleaseStartupJob() { startupProcess?.Release(); }
+
+        /// <summary>取消未完成的 GUI 启动，终止 Job 内的整个进程树。</summary>
+        public void CancelStartup() { startupProcess?.Dispose(); }
+
+        /// <summary>清理尚未交接的 GUI 进程树及进程资源。</summary>
+        public void Dispose() { startupProcess?.Dispose(); process?.Dispose(); }
     }
 }

@@ -101,7 +101,7 @@ namespace OneDragonLauncherWpf
                     return;
                 }
                 runner = new PythonRunner(log);
-                runner.StageChanged += stage => Dispatch(() => { if (!ready && !dismissed) model.Apply(stage); });
+                runner.OutputReceived += line => Dispatch(() => { if (!ready && !dismissed) model.ApplyLog(line); });
                 runner.ErrorDetected += () => Dispatch(() =>
                 {
                     if (!dismissed && !ready) { startupProblem = true; OpenLog(); }
@@ -145,6 +145,7 @@ namespace OneDragonLauncherWpf
                 if (dismissed) return;
                 if (found)
                 {
+                    runner.ReleaseStartupJob();
                     startupProblem |= runner.HasError;
                     ready = true;
                     if (startupProblem)
@@ -215,18 +216,19 @@ namespace OneDragonLauncherWpf
         }
 
         /// <summary>
-        /// 标记用户已关闭窗口并通知等待流程结束，不终止 Python 后端。
+        /// 主界面尚未出现时关闭 Job 终止后端；交接后只关闭启动窗口。
         /// </summary>
         protected override void OnClosing(CancelEventArgs e)
         {
-            // Python owns the output relay, so closing WPF does not break child output.
+            base.OnClosing(e);
+            if (e.Cancel) return;
             if (busy)
             {
                 dismissed = true;
+                runner?.CancelStartup();
                 closeRequested.TrySetResult(true);
                 terminal?.Close();
             }
-            base.OnClosing(e);
         }
 
         /// <summary>

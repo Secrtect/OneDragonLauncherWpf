@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using OneDragonLauncherWpf.Services;
 
 namespace OneDragonLauncherWpf.ViewModels
@@ -13,6 +14,8 @@ namespace OneDragonLauncherWpf.ViewModels
         private string stepText = "检查工作目录与 Python 环境...";
         private LaunchPhase currentPhase = LaunchPhase.Initializing;
         private bool hasFailed;
+        private static readonly Regex LogPrefix = new Regex(
+            @"^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:[,.]\d+)?\s*\|\s*[A-Z]+\s*\|\s*", RegexOptions.Compiled);
         /// <summary>
         /// 通知 WPF 绑定某个属性的值已变化。
         /// </summary>
@@ -45,6 +48,24 @@ namespace OneDragonLauncherWpf.ViewModels
             currentPhase = stage.Phase;
             StatusMessage = stage.Status;
             StepText = stage.Step;
+        }
+
+        /// <summary>
+        /// 更新阶段，并在 Git 同步期间将最新日志正文显示为步骤说明。
+        /// </summary>
+        /// <param name="line">已清理控制字符的后端日志。</param>
+        public void ApplyLog(string line)
+        {
+            if (HasFailed || string.IsNullOrWhiteSpace(line)) return;
+            var stage = LaunchStage.FromLog(line);
+            if (stage != null)
+            {
+                if (stage.Phase < currentPhase) return;
+                Apply(stage);
+            }
+            if (currentPhase != LaunchPhase.SyncingCode) return;
+            string message = LogPrefix.Replace(line, "").Trim();
+            if (message.Length > 0) StepText = message;
         }
 
         /// <summary>

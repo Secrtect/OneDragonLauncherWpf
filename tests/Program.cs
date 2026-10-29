@@ -17,6 +17,30 @@ internal static class Program
 
     private static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "--job-leaf")
+        {
+            System.Threading.Thread.Sleep(60000);
+            return 0;
+        }
+        if (args.Length > 0 && args[0] == "--job-tree")
+        {
+            using (var child = Process.Start(new ProcessStartInfo(typeof(Program).Assembly.Location, "--job-leaf")
+                { UseShellExecute = false, CreateNoWindow = true }))
+            {
+                Console.WriteLine(child.Id);
+                System.Threading.Thread.Sleep(60000);
+            }
+            return 0;
+        }
+        if (args.Length > 0 && args[0] == "--job-owner")
+        {
+            using (var owned = new StartupProcess(JobStartInfo(), line => Console.WriteLine(line)))
+            {
+                Console.Error.WriteLine(owned.Id);
+                System.Threading.Thread.Sleep(60000);
+            }
+            return 0;
+        }
         if (args.Length > 0 && args[0] == "-u")
         {
             Console.OutputEncoding = new UTF8Encoding(false);
@@ -33,6 +57,33 @@ internal static class Program
         Directory.CreateDirectory(temporary);
         try
         {
+            Check("Job 取消启动时终止父进程和后代", () => CheckJobLifetime(false));
+            Check("Job 就绪交接后释放句柄保留父进程和后代", () => CheckJobLifetime(true));
+            Check("启动器异常退出时 Job 自动终止整个进程树", () =>
+            {
+                var info = JobStartInfo();
+                info.Arguments = "--job-owner";
+                info.RedirectStandardOutput = info.RedirectStandardError = true;
+                using (var owner = Process.Start(info))
+                {
+                    Process root = null, child = null;
+                    try
+                    {
+                        var rootLine = owner.StandardError.ReadLineAsync();
+                        var childLine = owner.StandardOutput.ReadLineAsync();
+                        Assert(Task.WaitAll(new Task[] { rootLine, childLine }, 10000));
+                        root = Process.GetProcessById(int.Parse(rootLine.Result));
+                        child = Process.GetProcessById(int.Parse(childLine.Result));
+                        owner.Kill();
+                        Assert(owner.WaitForExit(10000) && root.WaitForExit(10000) && child.WaitForExit(10000));
+                    }
+                    finally
+                    {
+                        KillFixture(child); KillFixture(root); KillFixture(owner);
+                        child?.Dispose(); root?.Dispose();
+                    }
+                }
+            });
             Check("Debug 默认预览，显式项目与 CLI 保留真实启动", () =>
             {
                 Assert(LauncherOptions.Parse(new string[0], defaultToPreview: true).Preview);
@@ -223,6 +274,30 @@ internal static class Program
                 model.Apply(LaunchStage.FromLog("等待主界面弹出"));
                 Assert(model.HasFailed && model.StatusMessage == "启动失败" && model.StepText == "失败详情");
             });
+            Check("Git 日志实时显示且不覆盖后续阶段或失败信息", () =>
+            {
+                var model = new LauncherViewModel();
+                model.ApplyLog("普通日志");
+                Assert(model.StepText == "检查工作目录与 Python 环境...");
+                model.ApplyLog("2026-10-29 08:14:59,323 | INFO | 拉取远程代码");
+                model.ApplyLog("2026-10-29 08:14:59,323 | INFO | 尝试代码源: GitHub");
+                Assert(model.StepText == "尝试代码源: GitHub");
+                model.ApplyLog("2026-10-29 08:15:01,062 | INFO | 拉取对象 94/94 (100%), done.");
+                Assert(model.StepText == "拉取对象 94/94 (100%), done.");
+                Assert(model.StatusMessage == "正在同步代码更新...");
+                model.ApplyLog("处理增量 1/50 (2%)");
+                model.ApplyLog("  ");
+                model.ApplyLog("目录核验通过");
+                Assert(model.StepText == "处理增量 1/50 (2%)");
+                model.ApplyLog("2026-10-29 08:15:05,603 | WARNING | 暂时无法获取更新, 继续使用当前版本");
+                Assert(model.StepText == "暂时无法获取更新, 继续使用当前版本");
+                model.ApplyLog("开始检查运行环境...");
+                model.ApplyLog("处理增量 50/50 (100%), done.");
+                Assert(model.StepText == "同步 Python 运行环境");
+                model.Fail("启动失败", "失败详情");
+                model.ApplyLog("拉取远程代码");
+                Assert(model.StepText == "失败详情" && model.StatusMessage == "启动失败");
+            });
             Check("日志并发写入、增量与容量限制", () =>
             {
                 var log = new LauncherLog();
@@ -276,6 +351,42 @@ internal static class Program
     }
 
     private static void Check(string name, Action test) { test(); passed++; Console.WriteLine("PASS " + name); }
+    private static ProcessStartInfo JobStartInfo()
+    {
+        return new ProcessStartInfo(typeof(Program).Assembly.Location, "--job-tree")
+        { WorkingDirectory = Environment.CurrentDirectory, UseShellExecute = false, CreateNoWindow = true };
+    }
+
+    private static void CheckJobLifetime(bool release)
+    {
+        var childId = new TaskCompletionSource<int>();
+        using (var owned = new StartupProcess(JobStartInfo(), line => childId.TrySetResult(int.Parse(line))))
+        using (var root = Process.GetProcessById(owned.Id))
+        {
+            Process child = null;
+            try
+            {
+                Assert(childId.Task.Wait(10000));
+                child = Process.GetProcessById(childId.Task.Result);
+                if (release) { owned.Release(); owned.Release(); }
+                owned.Dispose();
+                owned.Dispose();
+                if (release) Assert(!root.WaitForExit(300) && !child.WaitForExit(300));
+                else Assert(root.WaitForExit(10000) && child.WaitForExit(10000));
+            }
+            finally
+            {
+                KillFixture(child); KillFixture(root);
+                child?.Dispose();
+            }
+            Assert(owned.Completion.Wait(10000));
+        }
+    }
+
+    private static void KillFixture(Process process)
+    {
+        if (process != null && !process.HasExited) { process.Kill(); process.WaitForExit(10000); }
+    }
     private static void Assert(bool value) { if (!value) throw new Exception("Assertion failed"); }
     private static void Reject(string[] args)
     {
