@@ -2,10 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Interop;
 using OneDragonLauncherWpf.Services;
 using OneDragonLauncherWpf.ViewModels;
 using Wpf.Ui.Controls;
@@ -17,15 +15,6 @@ namespace OneDragonLauncherWpf
     /// </summary>
     public partial class MainWindow : FluentWindow
     {
-        private const int GwlExStyle = -20;
-        private const int WsExToolWindow = 0x00000080;
-
-        [DllImport("user32.dll", EntryPoint = "GetWindowLongW")]
-        private static extern int GetWindowLong(IntPtr window, int index);
-
-        [DllImport("user32.dll", EntryPoint = "SetWindowLongW")]
-        private static extern int SetWindowLong(IntPtr window, int index, int value);
-
         private readonly LauncherOptions options;
         private readonly LauncherLog log = new LauncherLog();
         private readonly LauncherViewModel model = new LauncherViewModel();
@@ -50,11 +39,6 @@ namespace OneDragonLauncherWpf
         {
             this.options = options;
             InitializeComponent();
-            SourceInitialized += (sender, args) =>
-            {
-                IntPtr handle = new WindowInteropHelper(this).Handle;
-                SetWindowLong(handle, GwlExStyle, GetWindowLong(handle, GwlExStyle) | WsExToolWindow);
-            };
             WindowAppearance.Attach(this);
             DataContext = model;
             Loaded += OnLoaded;
