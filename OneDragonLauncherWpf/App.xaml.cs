@@ -46,7 +46,7 @@ namespace OneDragonLauncherWpf
             catch (ArgumentException exception) { ShowMessage(exception.Message, true); Shutdown(1); return; }
             if (options.Help || options.Version)
             {
-                ShowMessage(options.Help ? LauncherOptions.Usage : "OneDragon Launcher WPF v" + Assembly.GetExecutingAssembly().GetName().Version, false);
+                ShowMessage(options.Help ? LauncherOptions.Usage : "OneDragon Launcher WPF v" + Assembly.GetExecutingAssembly().GetName().Version.ToString(3), false);
                 Shutdown();
                 return;
             }
