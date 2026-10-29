@@ -24,6 +24,35 @@ internal static class SingleFileSmoke
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowVisible(IntPtr window);
 
+    private delegate bool EnumWindowsCallback(IntPtr window, IntPtr parameter);
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr parameter);
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowText(IntPtr window, StringBuilder text, int count);
+    [DllImport("user32.dll")]
+    private static extern bool PostMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+
+    private static IntPtr FindLauncherWindow(int processId)
+    {
+        IntPtr found = IntPtr.Zero;
+        EnumWindows((window, parameter) =>
+        {
+            uint owner;
+            GetWindowThreadProcessId(window, out owner);
+            var title = new StringBuilder(256);
+            GetWindowText(window, title, title.Capacity);
+            if (owner == (uint)processId && IsWindowVisible(window) && title.ToString() == "绝区零一条龙启动器")
+            {
+                found = window;
+                return false;
+            }
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
+
     [STAThread]
     private static int Main(string[] args)
     {
@@ -84,14 +113,15 @@ internal static class SingleFileSmoke
             try
             {
                 var timeout = Stopwatch.StartNew();
+                IntPtr window = IntPtr.Zero;
                 while (!process.HasExited && timeout.ElapsedMilliseconds < 10000)
                 {
-                    process.Refresh();
-                    if (process.MainWindowTitle == "绝区零一条龙启动器") break;
+                    window = FindLauncherWindow(process.Id);
+                    if (window != IntPtr.Zero) break;
                     Thread.Sleep(100);
                 }
-                Assert(!process.HasExited && process.MainWindowTitle == "绝区零一条龙启动器", "Packed EXE did not open its main window.");
-                Assert(process.CloseMainWindow(), "Packed EXE did not accept a normal window close.");
+                Assert(!process.HasExited && window != IntPtr.Zero, "Packed EXE did not open its main window.");
+                Assert(PostMessage(window, 0x0010, IntPtr.Zero, IntPtr.Zero), "Packed EXE did not accept a normal window close.");
                 Assert(process.WaitForExit(5000), "Packed EXE did not exit after closing the preview.");
                 Assert(process.ExitCode == 0, "Packed EXE exited with code " + process.ExitCode + ": " + stderr.Result);
                 Assert(stdout.Result.Contains("[界面预览]"), "The standalone process did not enter preview mode.");

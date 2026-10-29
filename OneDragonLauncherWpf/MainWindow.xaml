@@ -6,7 +6,7 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         mc:Ignorable="d"
         Title="绝区零一条龙启动器" Width="520" Height="300" MinWidth="520" MaxWidth="520" MinHeight="300" MaxHeight="300"
-        ResizeMode="NoResize" WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize" WindowStartupLocation="CenterScreen" Topmost="True" ShowInTaskbar="False"
         ExtendsContentIntoTitleBar="True" WindowCornerPreference="Round"
         WindowBackdropType="None" Background="{DynamicResource LauncherBackgroundBrush}"
         Icon="Assets/logo-full.ico" FontFamily="Microsoft YaHei UI"
