@@ -36,7 +36,6 @@ namespace OneDragonLauncherWpf
         private bool dismissed;
         private bool ready;
         private bool started;
-        private bool startupProblem;
 
         /// <summary>
         /// 创建默认预览窗口，供设计器或独立界面预览使用。
@@ -104,11 +103,11 @@ namespace OneDragonLauncherWpf
                 runner.OutputReceived += line => Dispatch(() => { if (!ready && !dismissed) model.ApplyLog(line); });
                 runner.ErrorDetected += () => Dispatch(() =>
                 {
-                    if (!dismissed && !ready) { startupProblem = true; OpenLog(); }
+                    if (!dismissed && !ready) OpenLog();
                 });
                 runner.Start(environment, options);
                 await WatchStartupAsync();
-                if (dismissed || (ready && !startupProblem)) return;
+                if (dismissed || ready) return;
                 await Task.WhenAny(runner.Completion, closeRequested.Task);
                 if (dismissed) return;
                 int exitCode = await runner.Completion;
@@ -130,7 +129,7 @@ namespace OneDragonLauncherWpf
         }
 
         /// <summary>
-        /// 监视本次启动的进程及其后代窗口；正常就绪时关闭启动器，超时或出错时保留日志。
+        /// 监视本次启动的进程及其后代窗口；发现匹配的可见窗口后交接后台并退出。
         /// </summary>
         /// <returns>检测到主界面、后端退出或用户关闭窗口时完成的任务。</returns>
         /// <remarks>等待超过三十秒只提示并继续监视，不终止 Python 进程。</remarks>
@@ -146,15 +145,7 @@ namespace OneDragonLauncherWpf
                 if (found)
                 {
                     runner.ReleaseStartupJob();
-                    startupProblem |= runner.HasError;
                     ready = true;
-                    if (startupProblem)
-                    {
-                        model.Fail("主界面已启动，请检查启动日志", "启动期间出现错误或等待超时，窗口保留供查看。");
-                        log.Write("[窗口监视] 已检测到主界面；启动期间存在异常，保留窗口。可手动关闭，不影响 Python。");
-                        OpenLog();
-                        return;
-                    }
                     log.Write("[窗口监视] 检测到本次启动的 OneDragon GUI，退出启动器。");
                     Close();
                     return;
@@ -163,7 +154,6 @@ namespace OneDragonLauncherWpf
                 if (!timeoutReported && timer.Elapsed >= TimeSpan.FromSeconds(30))
                 {
                     timeoutReported = true;
-                    startupProblem = true;
                     model.StatusMessage = "启动耗时较长，正在等待主界面...";
                     model.StepText = "已等待 30 秒，可查看日志了解进度";
                     log.Write("[窗口监视] 30 秒内尚未检测到主界面，将继续等待；请查看日志确认更新或环境安装进度。");
