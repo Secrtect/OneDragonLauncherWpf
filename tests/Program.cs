@@ -17,30 +17,6 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        if (args.Length > 0 && args[0] == "--job-leaf")
-        {
-            System.Threading.Thread.Sleep(60000);
-            return 0;
-        }
-        if (args.Length > 0 && args[0] == "--job-tree")
-        {
-            using (var child = Process.Start(new ProcessStartInfo(typeof(Program).Assembly.Location, "--job-leaf")
-                { UseShellExecute = false, CreateNoWindow = true }))
-            {
-                Console.WriteLine(child.Id);
-                System.Threading.Thread.Sleep(60000);
-            }
-            return 0;
-        }
-        if (args.Length > 0 && args[0] == "--job-owner")
-        {
-            using (var owned = new StartupProcess(JobStartInfo(), line => Console.WriteLine(line)))
-            {
-                Console.Error.WriteLine(owned.Id);
-                System.Threading.Thread.Sleep(60000);
-            }
-            return 0;
-        }
         if (args.Length > 0 && args[0] == "-u")
         {
             Console.OutputEncoding = new UTF8Encoding(false);
@@ -57,33 +33,6 @@ internal static class Program
         Directory.CreateDirectory(temporary);
         try
         {
-            Check("Job 取消启动时终止父进程和后代", () => CheckJobLifetime(false));
-            Check("Job 就绪交接后释放句柄保留父进程和后代", () => CheckJobLifetime(true));
-            Check("启动器异常退出时 Job 自动终止整个进程树", () =>
-            {
-                var info = JobStartInfo();
-                info.Arguments = "--job-owner";
-                info.RedirectStandardOutput = info.RedirectStandardError = true;
-                using (var owner = Process.Start(info))
-                {
-                    Process root = null, child = null;
-                    try
-                    {
-                        var rootLine = owner.StandardError.ReadLineAsync();
-                        var childLine = owner.StandardOutput.ReadLineAsync();
-                        Assert(Task.WaitAll(new Task[] { rootLine, childLine }, 10000));
-                        root = Process.GetProcessById(int.Parse(rootLine.Result));
-                        child = Process.GetProcessById(int.Parse(childLine.Result));
-                        owner.Kill();
-                        Assert(owner.WaitForExit(10000) && root.WaitForExit(10000) && child.WaitForExit(10000));
-                    }
-                    finally
-                    {
-                        KillFixture(child); KillFixture(root); KillFixture(owner);
-                        child?.Dispose(); root?.Dispose();
-                    }
-                }
-            });
             Check("Debug 默认预览，显式项目与 CLI 保留真实启动", () =>
             {
                 Assert(LauncherOptions.Parse(new string[0], defaultToPreview: true).Preview);
@@ -351,42 +300,6 @@ internal static class Program
     }
 
     private static void Check(string name, Action test) { test(); passed++; Console.WriteLine("PASS " + name); }
-    private static ProcessStartInfo JobStartInfo()
-    {
-        return new ProcessStartInfo(typeof(Program).Assembly.Location, "--job-tree")
-        { WorkingDirectory = Environment.CurrentDirectory, UseShellExecute = false, CreateNoWindow = true };
-    }
-
-    private static void CheckJobLifetime(bool release)
-    {
-        var childId = new TaskCompletionSource<int>();
-        using (var owned = new StartupProcess(JobStartInfo(), line => childId.TrySetResult(int.Parse(line))))
-        using (var root = Process.GetProcessById(owned.Id))
-        {
-            Process child = null;
-            try
-            {
-                Assert(childId.Task.Wait(10000));
-                child = Process.GetProcessById(childId.Task.Result);
-                if (release) { owned.Release(); owned.Release(); }
-                owned.Dispose();
-                owned.Dispose();
-                if (release) Assert(!root.WaitForExit(300) && !child.WaitForExit(300));
-                else Assert(root.WaitForExit(10000) && child.WaitForExit(10000));
-            }
-            finally
-            {
-                KillFixture(child); KillFixture(root);
-                child?.Dispose();
-            }
-            Assert(owned.Completion.Wait(10000));
-        }
-    }
-
-    private static void KillFixture(Process process)
-    {
-        if (process != null && !process.HasExited) { process.Kill(); process.WaitForExit(10000); }
-    }
     private static void Assert(bool value) { if (!value) throw new Exception("Assertion failed"); }
     private static void Reject(string[] args)
     {

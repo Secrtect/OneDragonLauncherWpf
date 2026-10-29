@@ -129,7 +129,7 @@ namespace OneDragonLauncherWpf
         }
 
         /// <summary>
-        /// 监视本次启动的进程及其后代窗口；发现匹配的可见窗口后交接后台并退出。
+        /// 监视本次启动的进程及其后代窗口；发现匹配的可见窗口后退出启动器。
         /// </summary>
         /// <returns>检测到主界面、后端退出或用户关闭窗口时完成的任务。</returns>
         /// <remarks>等待超过三十秒只提示并继续监视，不终止 Python 进程。</remarks>
@@ -144,7 +144,6 @@ namespace OneDragonLauncherWpf
                 if (dismissed) return;
                 if (found)
                 {
-                    runner.ReleaseStartupJob();
                     ready = true;
                     log.Write("[窗口监视] 检测到本次启动的 OneDragon GUI，退出启动器。");
                     Close();
@@ -206,7 +205,7 @@ namespace OneDragonLauncherWpf
         }
 
         /// <summary>
-        /// 主界面尚未出现时关闭 Job 终止后端；交接后只关闭启动窗口。
+        /// 标记用户已关闭窗口并通知等待流程结束，不终止 Python 后端。
         /// </summary>
         protected override void OnClosing(CancelEventArgs e)
         {
@@ -215,7 +214,6 @@ namespace OneDragonLauncherWpf
             if (busy)
             {
                 dismissed = true;
-                runner?.CancelStartup();
                 closeRequested.TrySetResult(true);
                 terminal?.Close();
             }
