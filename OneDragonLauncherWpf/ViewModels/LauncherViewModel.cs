@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using OneDragonLauncherWpf.Services;
@@ -14,6 +15,8 @@ namespace OneDragonLauncherWpf.ViewModels
         private string stepText = "检查工作目录与 Python 环境...";
         private LaunchPhase currentPhase = LaunchPhase.Initializing;
         private bool hasFailed;
+        private readonly Stopwatch guiWait = new Stopwatch();
+        public bool IsStartingGui { get { return currentPhase == LaunchPhase.StartingGui; } }
         private static readonly Regex LogPrefix = new Regex(
             @"^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:[,.]\d+)?\s*\|\s*[A-Z]+\s*\|\s*", RegexOptions.Compiled);
         /// <summary>
@@ -45,7 +48,10 @@ namespace OneDragonLauncherWpf.ViewModels
         public void Apply(LaunchStage stage)
         {
             if (HasFailed || stage.Phase < currentPhase) return;
+            // Repeated completion logs must not restart the wait or restore the initial text.
+            if (stage.Phase == LaunchPhase.StartingGui && IsStartingGui) return;
             currentPhase = stage.Phase;
+            if (IsStartingGui) guiWait.Start();
             StatusMessage = stage.Status;
             StepText = stage.Step;
         }
@@ -66,6 +72,14 @@ namespace OneDragonLauncherWpf.ViewModels
             if (currentPhase != LaunchPhase.SyncingCode) return;
             string message = LogPrefix.Replace(line, "").Trim();
             if (message.Length > 0) StepText = message;
+        }
+
+        /// <summary>仅在环境就绪后的界面启动阶段，等待三秒后更新提示。</summary>
+        public void UpdateGuiWait()
+        {
+            if (!HasFailed && IsStartingGui && guiWait.Elapsed.TotalSeconds >= 3 &&
+                StepText != "首次启动时间较长，请等待")
+                StepText = "首次启动时间较长，请等待";
         }
 
         /// <summary>

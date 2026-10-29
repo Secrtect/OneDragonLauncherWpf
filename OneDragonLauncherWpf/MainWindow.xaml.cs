@@ -150,11 +150,15 @@ namespace OneDragonLauncherWpf
                     return;
                 }
                 if (runner.Completion.IsCompleted) return;
+                model.UpdateGuiWait();
                 if (!timeoutReported && timer.Elapsed >= TimeSpan.FromSeconds(30))
                 {
                     timeoutReported = true;
-                    model.StatusMessage = "启动耗时较长，正在等待主界面...";
-                    model.StepText = "已等待 30 秒，可查看日志了解进度";
+                    if (!model.IsStartingGui)
+                    {
+                        model.StatusMessage = "启动耗时较长，正在等待主界面...";
+                        model.StepText = "已等待 30 秒，可查看日志了解进度";
+                    }
                     log.Write("[窗口监视] 30 秒内尚未检测到主界面，将继续等待；请查看日志确认更新或环境安装进度。");
                     OpenLog();
                 }

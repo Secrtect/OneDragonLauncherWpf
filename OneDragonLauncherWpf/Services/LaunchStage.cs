@@ -74,8 +74,9 @@ namespace OneDragonLauncherWpf.Services
                 return new LaunchStage(LaunchPhase.SyncingCode, "正在同步代码更新...", "Git 代码同步");
             if (line.Contains("开始检查运行环境") || line.Contains("正在同步运行依赖"))
                 return new LaunchStage(LaunchPhase.CheckingDependencies, "正在检查运行依赖...", "同步 Python 运行环境");
-            if (line.Contains("正在启动中") || line.Contains("等待主界面弹出"))
-                return new LaunchStage(LaunchPhase.StartingGui, "正在启动主界面...", "OneDragon GUI 启动中");
+            if (line.Contains("正在启动中") || line.Contains("等待主界面弹出") ||
+                line.Contains("运行环境已同步") || line.Contains("运行环境同步完成"))
+                return new LaunchStage(LaunchPhase.StartingGui, "正在启动主界面...", "正在启动主界面，等待窗口出现...");
             return null;
         }
     }
