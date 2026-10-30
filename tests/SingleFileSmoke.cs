@@ -61,12 +61,16 @@ internal static class SingleFileSmoke
         // deliberately valid launcher arguments, so the real App.OnStartup runs unchanged.
         if (args.Length > 0 && args[0] == "--preview") return ProbeWindows();
         if (args.Length != 1) { Console.Error.WriteLine("Usage: SingleFile.Smoke.exe <packed-launcher.exe>"); return 1; }
-        string directory = Path.Combine(Path.GetTempPath(), "OneDragon-single-file-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
+        string sourceExecutable = Path.GetFullPath(args[0]);
+        string artifactDirectory = Path.GetDirectoryName(sourceExecutable);
+        string directoryName = "OneDragon-single-file-" + Guid.NewGuid().ToString("N");
+        string directory = Path.Combine(artifactDirectory, directoryName);
         try
         {
+            Directory.CreateDirectory(directory);
+            Console.WriteLine("单文件验证目录: " + directory);
             string executable = Path.Combine(directory, "OneDragon-Launcher.exe");
-            File.Copy(Path.GetFullPath(args[0]), executable);
+            File.Copy(sourceExecutable, executable);
             Assert(Directory.GetFiles(directory).Length == 1, "The isolated folder must contain only the launcher EXE.");
             RunHosted(executable, "--preview", "Light");
             RunHosted(executable, "--preview --dark", "Dark");
@@ -82,9 +86,9 @@ internal static class SingleFileSmoke
         finally
         {
             string fullPath = Path.GetFullPath(directory);
-            string tempPrefix = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-            if (fullPath.StartsWith(tempPrefix, StringComparison.OrdinalIgnoreCase) &&
-                Path.GetFileName(fullPath).StartsWith("OneDragon-single-file-", StringComparison.Ordinal))
+            if (string.Equals(Path.GetDirectoryName(fullPath), artifactDirectory, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(Path.GetFileName(fullPath), directoryName, StringComparison.Ordinal) &&
+                Directory.Exists(fullPath))
                 Directory.Delete(fullPath, true);
         }
     }

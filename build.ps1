@@ -49,12 +49,14 @@ Copy-Item -LiteralPath (Join-Path $releaseDirectory 'OneDragon-Launcher.exe') -D
 if (-not $SkipTests) {
     & $builder (Join-Path $projectRoot 'tests\SingleFile.Smoke.csproj') /t:Build /nologo /v:minimal
     if ($LASTEXITCODE -ne 0) { throw '单文件验证程序构建失败。' }
+    Write-Host '正在验证单文件（artifacts 独立子目录，结束后自动清理）...'
     & (Join-Path $projectRoot 'tests\single-file-bin\SingleFile.Smoke.exe') $singleExecutable
     if ($LASTEXITCODE -ne 0) { throw '单文件独立启动验证失败。' }
 }
 Write-Host ("单文件: {0} ({1:N2} MiB)" -f $singleExecutable, ((Get-Item -LiteralPath $singleExecutable).Length / 1MB))
 if (-not $SkipArchive) {
     $archivePath = Join-Path $artifactDirectory 'OneDragon-Launcher-Windows.zip'
+    Write-Host "正在生成压缩包: $archivePath"
     Compress-Archive -LiteralPath $singleExecutable -DestinationPath $archivePath -Force
     Write-Host "已生成: $archivePath"
 }

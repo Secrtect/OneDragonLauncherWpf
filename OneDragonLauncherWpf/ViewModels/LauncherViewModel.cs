@@ -16,6 +16,7 @@ namespace OneDragonLauncherWpf.ViewModels
         private LaunchPhase currentPhase = LaunchPhase.Initializing;
         private bool hasFailed;
         private readonly Stopwatch guiWait = new Stopwatch();
+        private bool guiWaitReported;
         public bool IsStartingGui { get { return currentPhase == LaunchPhase.StartingGui; } }
         private static readonly Regex LogPrefix = new Regex(
             @"^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:[,.]\d+)?\s*\|\s*[A-Z]+\s*\|\s*", RegexOptions.Compiled);
@@ -74,12 +75,17 @@ namespace OneDragonLauncherWpf.ViewModels
             if (message.Length > 0) StepText = message;
         }
 
-        /// <summary>仅在环境就绪后的界面启动阶段，等待三秒后更新提示。</summary>
-        public void UpdateGuiWait()
+        /// <summary>仅在环境就绪后的界面启动阶段，三秒后更新提示，六秒后请求显示日志。</summary>
+        /// <returns>首次等待满六秒时返回 true，通知窗口显示日志。</returns>
+        public bool UpdateGuiWait()
         {
-            if (!HasFailed && IsStartingGui && guiWait.Elapsed.TotalSeconds >= 3 &&
-                StepText != "首次启动时间较长，请等待")
-                StepText = "首次启动时间较长，请等待";
+            if (HasFailed || !IsStartingGui) return false;
+            double seconds = guiWait.Elapsed.TotalSeconds;
+            if (seconds >= 3 && StepText != "加载核心组件耗时稍长，正在努力准备中...")
+                StepText = "加载核心组件耗时稍长，正在努力准备中...";
+            if (seconds < 6 || guiWaitReported) return false;
+            guiWaitReported = true;
+            return true;
         }
 
         /// <summary>

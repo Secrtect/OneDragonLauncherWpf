@@ -116,7 +116,7 @@ namespace OneDragonLauncherWpf
         /// 监视本次启动的进程及其后代窗口；发现匹配的可见窗口后退出启动器。
         /// </summary>
         /// <returns>检测到主界面、后端退出或用户关闭窗口时完成的任务。</returns>
-        /// <remarks>等待超过三十秒只提示并继续监视，不终止 Python 进程。</remarks>
+        /// <remarks>主界面启动阶段等待六秒后显示日志；其他阶段保留三十秒提示，并继续监视。</remarks>
         private async Task WatchStartupAsync()
         {
             var family = new HashSet<uint> { (uint)runner.ProcessId };
@@ -134,7 +134,12 @@ namespace OneDragonLauncherWpf
                     return;
                 }
                 if (runner.Completion.IsCompleted) return;
-                model.UpdateGuiWait();
+                if (model.UpdateGuiWait())
+                {
+                    timeoutReported = true;
+                    log.Write("[窗口监视] 主界面启动已等待 6 秒，尚未检测到窗口，显示日志并继续等待。");
+                    OpenLog();
+                }
                 if (!timeoutReported && timer.Elapsed >= TimeSpan.FromSeconds(30))
                 {
                     timeoutReported = true;
