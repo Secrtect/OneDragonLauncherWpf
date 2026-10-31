@@ -81,9 +81,9 @@ namespace OneDragonLauncherWpf.ViewModels
         {
             if (HasFailed || !IsStartingGui) return false;
             double seconds = guiWait.Elapsed.TotalSeconds;
-            if (seconds >= 3 && StepText != "加载核心组件耗时稍长，正在努力准备中...")
+            if (seconds >= 4 && StepText != "加载核心组件耗时稍长，正在努力准备中...")
                 StepText = "加载核心组件耗时稍长，正在努力准备中...";
-            if (seconds < 6 || guiWaitReported) return false;
+            if (seconds < 10 || guiWaitReported) return false;
             guiWaitReported = true;
             return true;
         }
