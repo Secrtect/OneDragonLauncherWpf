@@ -1,6 +1,5 @@
 using System;
 using System.ComponentModel;
-using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
@@ -46,7 +45,7 @@ namespace OneDragonLauncherWpf
             catch (ArgumentException exception) { ShowMessage(exception.Message, true); Shutdown(1); return; }
             if (options.Help || options.Version)
             {
-                ShowMessage(options.Help ? LauncherOptions.Usage : "OneDragon Launcher WPF v" + Assembly.GetExecutingAssembly().GetName().Version.ToString(3), false);
+                ShowMessage(options.Help ? LauncherOptions.Usage : "OneDragon Launcher WPF v2.6.0", false);
                 Shutdown();
                 return;
             }
