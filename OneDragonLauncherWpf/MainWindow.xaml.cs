@@ -151,7 +151,7 @@ namespace OneDragonLauncherWpf
                     log.Write("[窗口监视] 30 秒内尚未检测到主界面，将继续等待；请查看日志确认更新或环境安装进度。");
                     OpenLog();
                 }
-                await Task.Delay(500);
+                await Task.Delay(100);
             }
         }
 
