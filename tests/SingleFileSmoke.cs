@@ -57,8 +57,8 @@ internal static class SingleFileSmoke
     private static int Main(string[] args)
     {
         Console.OutputEncoding = new UTF8Encoding(false);
-        // The hosted probe only references Windows framework assemblies. Its arguments are
-        // deliberately valid launcher arguments, so the real App.OnStartup runs unchanged.
+        // 托管检查仅引用 Windows 框架程序集，并使用合法的启动器参数，
+        // 以便直接执行实际的 App.OnStartup 启动流程。
         if (args.Length > 0 && args[0] == "--preview") return ProbeWindows();
         if (args.Length != 1) { Console.Error.WriteLine("Usage: SingleFile.Smoke.exe <packed-launcher.exe>"); return 1; }
         string sourceExecutable = Path.GetFullPath(args[0]);
@@ -161,8 +161,8 @@ internal static class SingleFileSmoke
         {
             string path = Environment.GetEnvironmentVariable(AssemblyVariable);
             Assert(!string.IsNullOrEmpty(path), "Missing isolated assembly path.");
-            // The native process checks above cover executable activation. Loading bytes here
-            // avoids adding the fixture directory to the probe's assembly search paths.
+            // 上面的独立进程检查已覆盖可执行文件启动；此处从字节加载程序集，
+            // 避免将测试目录加入检查程序的程序集搜索路径。
             var assembly = Assembly.Load(File.ReadAllBytes(path));
             string[] embeddedDependencies = { "Wpf.Ui", "Wpf.Ui.Abstractions", "System.Buffers", "System.Memory", "System.Numerics.Vectors", "System.Runtime.CompilerServices.Unsafe" };
             string[] resources = assembly.GetManifestResourceNames();
@@ -195,6 +195,21 @@ internal static class SingleFileSmoke
                 try
                 {
                     var main = app.MainWindow;
+                    if (phase == 3)
+                    {
+                        Assert(!main.IsVisible && terminal.IsVisible && terminal.Owner == null,
+                            "Ready launcher must hide only the main window and detach the visible terminal.");
+                        Assert(((TextBox)terminal.FindName("LogText")).Text.Contains("就绪后仍然接收日志"),
+                            "Retained terminal must continue refreshing logs after readiness.");
+                        bool mainClosed = false;
+                        main.Closed += (closedSender, closedArgs) => mainClosed = true;
+                        timer.Stop();
+                        terminal.Close();
+                        Assert(mainClosed, "Closing the retained terminal must also close the hidden main window.");
+                        passed = true;
+                        Console.WriteLine("PASS ready launcher hides main, retains live terminal, and exits when terminal closes.");
+                        return;
+                    }
                     Assert(main != null && main.IsLoaded && main.IsVisible, "Main window did not load.");
                     if (phase == 0)
                     {
@@ -210,6 +225,10 @@ internal static class SingleFileSmoke
                     if (phase == 1)
                     {
                         Assert(progress.IsIndeterminate, "Startup must use an indeterminate progress bar.");
+                        terminal.Close();
+                        Assert(main.IsVisible, "Closing the terminal before readiness must keep the launcher visible.");
+                        main.GetType().GetMethod("OpenLog", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(main, null);
+                        terminal = app.Windows.Cast<Window>().Single(window => window.GetType().Name == "TerminalWindow");
                         main.DataContext.GetType().GetMethod("Fail").Invoke(main.DataContext, new object[] { "模拟失败", "仅验证界面状态" });
                         phase++;
                         return;
@@ -223,11 +242,12 @@ internal static class SingleFileSmoke
                         var loaded = Assembly.Load(dependency);
                         Assert(string.IsNullOrEmpty(loaded.Location), "Dependency was loaded from disk instead of embedded resources: " + dependency);
                     }
-                    passed = true;
                     Console.WriteLine("PASS packed WPF main/log windows and all six dependencies loaded from memory.");
                     Console.WriteLine("PASS indeterminate startup and full error bar after failure.");
-                    timer.Stop();
-                    app.Shutdown();
+                    main.GetType().GetMethod("OnMainProgramReady", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(main, null);
+                    var log = main.GetType().GetField("log", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(main);
+                    log.GetType().GetMethod("Write").Invoke(log, new object[] { "就绪后仍然接收日志" });
+                    phase++;
                 }
                 catch (Exception exception)
                 {
@@ -250,7 +270,7 @@ internal static class SingleFileSmoke
 
     private static void ProbeInitialSurfaces(Assembly assembly, Application app, bool dark)
     {
-        // Force both themes independently of the machine's personalization setting.
+        // 分别强制使用两种主题，使检查不受本机个性化设置影响。
         app.GetType().GetMethod("ApplyTheme", BindingFlags.Instance | BindingFlags.NonPublic)
             .Invoke(app, new object[] { dark });
         var main = (Window)Activator.CreateInstance(assembly.GetType("OneDragonLauncherWpf.MainWindow", true));
@@ -258,8 +278,8 @@ internal static class SingleFileSmoke
         var terminal = (Window)Activator.CreateInstance(assembly.GetType("OneDragonLauncherWpf.TerminalWindow", true), log);
         foreach (var window in new[] { main, terminal })
         {
-            // Create the real HWND without Show/Loaded. This catches fixes applied too
-            // late to protect the first frame, as well as missing wiring on either window.
+            // 在窗口显示和加载前创建真实的原生窗口句柄，
+            // 检查两个窗口是否都已接入初始化逻辑，以及修复是否能及时覆盖首帧。
             IntPtr handle = new WindowInteropHelper(window).EnsureHandle();
             Assert(!window.IsLoaded && !IsWindowVisible(handle), "Initial surface probe must run before the window is displayed.");
             var target = HwndSource.FromHwnd(handle).CompositionTarget;

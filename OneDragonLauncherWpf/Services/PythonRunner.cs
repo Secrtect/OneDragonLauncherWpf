@@ -43,8 +43,8 @@ namespace OneDragonLauncherWpf.Services
         private static readonly Regex ErrorPattern = new Regex(
             @"\bERROR\b|\bCRITICAL\b|Traceback \(most recent call last\)|\b\w*(?:Error|Exception):", RegexOptions.Compiled);
 
-        // Keep the pipe readers inside the existing Python process. All descendants inherit
-        // these local pipes, not the WPF pipes. After WPF exits, the readers discard output.
+        // 在现有 Python 进程内读取管道，所有后代进程继承这些本地管道，
+        // 不直接继承启动器的管道；启动器退出后继续读取并丢弃输出。
         /// <summary>
         /// 在 Python 进程内转发标准输出和错误输出；WPF 退出后继续排空并丢弃输出，避免后端阻塞。
         /// </summary>
@@ -90,7 +90,7 @@ def _finish_output():
             stream.flush()
         except (OSError, ValueError):
             pass
-    # NUL is a device, not a disk file. Release local writers and drain the final output.
+    # 空设备不会写入磁盘文件；释放本地管道写入端，并排空剩余输出。
     with open(os.devnull, 'wb') as sink:
         for fd in (1, 2):
             os.dup2(sink.fileno(), fd)
@@ -100,8 +100,8 @@ def _finish_output():
 atexit.register(_finish_output)
 ";
 
-        // Both entry points need this before importing the Python launcher.
-        // Only shim colorama when it is actually absent.
+        // 两种启动入口都需在导入 Python 启动模块前执行此兼容处理。
+        // 仅在确实缺少 colorama 时注入替代模块。
         /// <summary>
         /// 仅在缺少 colorama 时注入最小兼容模块，不覆盖已安装模块或掩盖其内部依赖错误。
         /// </summary>
@@ -133,8 +133,8 @@ from one_dragon.devtools.python_launcher import run_python
 run_python(['zzz_od', 'gui', 'app'], piped=True)
 ";
 
-        // WPF already validates arguments and elevates, so skip the pyuac EXE wrapper.
-        // GetPythonArguments always places the launcher-only --onedragon flag first.
+        // 启动器已完成参数校验和提权，因此跳过 pyuac 的可执行文件包装入口。
+        // GetPythonArguments 始终将启动器专用的 --onedragon 参数放在首位。
         /// <summary>
         /// 执行命令行引导并透传后端参数；提权由 WPF 完成，不再经过 pyuac 包装入口。
         /// </summary>
@@ -205,11 +205,11 @@ run_python(['zzz_od', 'application', 'zzz_application_launcher'], no_windows=Fal
             if (!process.Start()) throw new InvalidOperationException("无法创建 Python 子进程。");
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
-            // A GUI launcher has no console for Python input() prompts; deliver EOF instead of hanging.
+            // 图形启动器没有可供 input() 交互的控制台，关闭输入以返回文件结束标志，避免阻塞。
             process.StandardInput.Close();
             Completion = Task.Run(() =>
             {
-                // Parameterless WaitForExit also drains both asynchronous output readers.
+                // 不带参数的 WaitForExit 还会等待标准输出和错误输出的异步读取全部完成。
                 process.WaitForExit();
                 int exitCode = process.ExitCode;
                 log.Write("Python 进程已退出，退出码: " + exitCode);

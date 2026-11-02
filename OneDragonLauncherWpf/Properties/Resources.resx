@@ -1,63 +1,54 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
-    Microsoft ResX Schema 
+    微软 ResX 资源格式定义
     
-    Version 2.0
+    版本：2.0
     
-    The primary goals of this format is to allow a simple XML format 
-    that is mostly human readable. The generation and parsing of the 
-    various data types are done through the TypeConverter classes 
-    associated with the data types.
+    此格式采用便于阅读的简单 XML 结构。
+    各种数据类型的生成与解析由对应的 TypeConverter 类型转换器完成。
     
-    Example:
+    示例：
     
-    ... ado.net/XML headers & schema ...
+    ... 数据访问与 XML 头部及格式定义 ...
     <resheader name="resmimetype">text/microsoft-resx</resheader>
     <resheader name="version">2.0</resheader>
     <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
     <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
-    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Name1"><value>这是一段较长的字符串</value><comment>这是一条注释</comment></data>
     <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
     <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
-        <value>[base64 mime encoded serialized .NET Framework object]</value>
+        <value>[序列化后采用 base64 编码的 .NET Framework 对象]</value>
     </data>
     <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
-        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
-        <comment>This is a comment</comment>
+        <value>[将 .NET Framework 对象转换为字节数组后采用 base64 编码的字符串]</value>
+        <comment>这是一条注释</comment>
     </data>
                 
-    There are any number of "resheader" rows that contain simple 
-    name/value pairs.
+    可以包含任意数量的 resheader 条目，每个条目保存简单的名称和值。
     
-    Each data row contains a name, and value. The row also contains a 
-    type or mimetype. Type corresponds to a .NET class that support 
-    text/value conversion through the TypeConverter architecture. 
-    Classes that don't support this are serialized and stored with the 
-    mimetype set.
+    每个 data 条目包含名称、值，以及 type 或 mimetype 属性。
+    type 对应支持通过 TypeConverter 在文本和值之间转换的 .NET 类型。
+    不支持此转换的类型会先序列化，再通过 mimetype 指定存储格式。
     
-    The mimetype is used for serialized objects, and tells the 
-    ResXResourceReader how to depersist the object. This is currently not 
-    extensible. For a given mimetype the value must be set accordingly:
+    mimetype 用于序列化对象，指定 ResXResourceReader 应如何还原对象。
+    此机制目前不可扩展，value 的内容必须符合对应 mimetype 的要求。
     
-    Note - application/x-microsoft.net.object.binary.base64 is the format 
-    that the ResXResourceWriter will generate, however the reader can 
-    read any of the formats listed below.
+    注意：ResXResourceWriter 生成的格式为
+    application/x-microsoft.net.object.binary.base64，
+    但读取器可以读取下列任意一种格式。
     
     mimetype: application/x-microsoft.net.object.binary.base64
-    value   : The object must be serialized with 
-            : System.Serialization.Formatters.Binary.BinaryFormatter
-            : and then encoded with base64 encoding.
+    value   : 对象须使用 System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : 序列化，然后采用 base64 编码。
     
     mimetype: application/x-microsoft.net.object.soap.base64
-    value   : The object must be serialized with 
-            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
-            : and then encoded with base64 encoding.
+    value   : 对象须使用 System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : 序列化，然后采用 base64 编码。
 
     mimetype: application/x-microsoft.net.object.bytearray.base64
-    value   : The object must be serialized into a byte array 
-            : using a System.ComponentModel.TypeConverter
-            : and then encoded with base64 encoding.
+    value   : 对象须使用 System.ComponentModel.TypeConverter
+            : 转换为字节数组，然后采用 base64 编码。
     -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:element name="root" msdata:IsDataSet="true">

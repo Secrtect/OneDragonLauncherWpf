@@ -122,8 +122,8 @@ namespace OneDragonLauncherWpf.Services
                     throw new ArgumentException("--shutdown、--hibernate 和 --sleep 不能同时使用，请只选择一种电源动作。");
                 if (result.Preview && result.OneDragon)
                     throw new ArgumentException("--preview 不能与 --onedragon 一起使用。");
-                // Debug UI development should work without a separate Python checkout.
-                // An explicit project or CLI mode still opts into the real launch path.
+                // 调试界面时无需另行准备 Python 项目。
+                // 显式指定项目或命令行模式时，仍执行真实启动流程。
                 if (defaultToPreview && !result.OneDragon && result.ProjectDirectory == null)
                     result.Preview = true;
             }
@@ -173,7 +173,7 @@ namespace OneDragonLauncherWpf.Services
         /// <returns>可供 Windows 子进程解析的命令行字符串。</returns>
         public static string Join(IEnumerable<string> arguments) { return string.Join(" ", arguments.Select(Quote)); }
 
-        // Windows CommandLineToArgvW / CRT escaping, including trailing backslashes.
+        // 遵循 Windows 命令行参数解析规则进行转义，并处理末尾的反斜杠。
         /// <summary>
         /// 按 CommandLineToArgvW 和 CRT 规则引用单个参数，处理引号前及末尾的反斜杠。
         /// </summary>

@@ -1,4 +1,4 @@
-"""Exercise the embedded bootstraps with isolated Python fixtures, without running the game."""
+"""使用隔离的 Python 测试环境验证内嵌引导代码，不运行游戏。"""
 import json
 import pathlib
 import re
@@ -30,7 +30,7 @@ with tempfile.TemporaryDirectory(prefix='OneDragon bootstrap ') as directory:
         folder.mkdir(exist_ok=True)
         (folder / '__init__.py').write_text('', encoding='utf-8')
 
-    # Match the failing import order: importing the launcher requires colorama first.
+    # 复现发生错误时的导入顺序：导入启动模块前需要先导入 colorama。
     (root / 'one_dragon/devtools/python_launcher.py').write_text('''
 import json
 from colorama import Fore, Style, init
@@ -52,7 +52,7 @@ def run_python(modules, piped, no_windows=None, args=None):
 ''', encoding='utf-8')
 
     setup = "import sys\nsys.path.insert(0, %r)\n" % directory
-    # Deterministically simulate an absent top-level colorama even if globally installed.
+    # 强制模拟缺少顶层 colorama 模块的情况，不受全局安装状态影响。
     missing = '''
 import importlib.abc
 class MissingColorama(importlib.abc.MetaPathFinder):
@@ -84,7 +84,7 @@ sys.meta_path.insert(0, MissingColorama())
     assert result.returncode == 0 and result.stdout.strip() == 'GUI_READY', result.stderr
     print('PASS: GUI missing colorama still starts through the output bridge')
 
-    # A discoverable implementation must be used rather than overwritten by the shim.
+    # 能找到已安装的模块时必须使用原模块，不能被兼容替代模块覆盖。
     (root / 'colorama.py').write_text('''
 class Fore:
     GREEN = 'REAL_GREEN:'

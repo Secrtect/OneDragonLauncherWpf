@@ -40,14 +40,14 @@ namespace OneDragonLauncherWpf
         {
             var window = (Window)sender;
             window.SourceInitialized -= OnSourceInitialized;
-            // EnsureHandle can create the HWND before the visual tree is connected,
-            // so resolve the source by its handle rather than FromVisual(window).
+            // EnsureHandle 可能在可视化树连接前创建原生窗口句柄，
+            // 因此通过句柄获取呈现源，避免此时调用 FromVisual(window)。
             IntPtr handle = new WindowInteropHelper(window).Handle;
             var source = HwndSource.FromHwnd(handle);
 
-            // FluentWindow has now configured WindowChrome. Its glass frame can leave
-            // the HWND transparent until WPF paints the gradient. Use an opaque clear
-            // color for that interval; keep the actual window/content brushes intact.
+            // 此时 FluentWindow 已配置 WindowChrome，其玻璃边框可能导致
+            // 原生窗口在渐变背景绘制完成前保持透明。用不透明清屏色填补这段空隙，
+            // 同时保留窗口和内容原有的画刷。
             var solid = window.Background as SolidColorBrush;
             var gradient = window.Background as GradientBrush;
             Color background = solid != null ? solid.Color
@@ -56,14 +56,14 @@ namespace OneDragonLauncherWpf
             if (source.CompositionTarget != null)
                 source.CompositionTarget.BackgroundColor = Color.FromRgb(background.R, background.G, background.B);
 
-            // ApplicationThemeManager.Apply ran before this HWND existed. Apply the
-            // native theme now, before Show, rather than deferring it until Loaded.
+            // ApplicationThemeManager.Apply 执行时原生窗口尚未创建，
+            // 因此在窗口显示前补设原生主题，避免等到加载完成后才生效。
             int dark = ApplicationThemeManager.GetAppTheme() == ApplicationTheme.Dark ? 1 : 0;
             int result = DwmSetWindowAttribute(source.Handle, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, ref dark, sizeof(int));
             if (result < 0)
                 result = DwmSetWindowAttribute(source.Handle, 19 /* Older Windows 10 builds */, ref dark, sizeof(int));
-            // Older Windows versions may not support either attribute. The WPF theme
-            // and opaque render background still work without native dark mode.
+            // 较旧的 Windows 版本可能不支持这两个属性；即使原生深色模式不可用，
+            // 界面主题和不透明呈现背景仍可正常生效。
             if (result < 0) Debug.WriteLine("Native window theme is unavailable: " + result);
         }
     }

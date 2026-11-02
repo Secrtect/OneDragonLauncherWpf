@@ -71,7 +71,7 @@ namespace OneDragonLauncherWpf
         }
 
         /// <summary>
-        /// 关闭日志窗口，不影响启动流程和日志收集。
+        /// 关闭日志窗口；启动期间不影响启动流程，主程序就绪后由主窗口结束启动器。
         /// </summary>
         private void CloseLog_Click(object sender, RoutedEventArgs e) { Close(); }
     }

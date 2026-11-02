@@ -1,4 +1,4 @@
-"""Run with a real Python interpreter; no OneDragon dependencies or game operations."""
+"""使用真实 Python 解释器检查输出转发，无需一条龙依赖，也不操作游戏。"""
 import pathlib
 import os
 import subprocess
@@ -15,7 +15,7 @@ def start(code):
                             env={**os.environ, 'PYTHONUTF8': '1', 'PYTHONIOENCODING': 'utf-8'})
 
 
-# Native writes and inherited handles exercise the GUI/uv descendants as well as print().
+# 通过原生写入和句柄继承检查图形界面及 uv 的后代进程，同时覆盖 print() 输出。
 descendant = "import os; os.write(1, ('子进程输出\\n' * 50000).encode()); os.write(2, ('子进程错误\\n' * 50000).encode())"
 with start("""
 import subprocess
@@ -27,7 +27,7 @@ for i in range(50000):
 subprocess.run([sys.executable, '-u', '-c', %r], check=True)
 """ % descendant) as process:
     assert process.stdout.readline().decode('utf-8').strip() == '启动就绪'
-    # Simulate the launcher going away while the Python tree keeps writing megabytes.
+    # 模拟启动器退出后，Python 及其后代进程仍持续输出数兆字节的数据。
     process.stdout.close()
     process.stderr.close()
     process.stdin.write(b'continue\n')

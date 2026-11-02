@@ -49,7 +49,7 @@ namespace OneDragonLauncherWpf.ViewModels
         public void Apply(LaunchStage stage)
         {
             if (HasFailed || stage.Phase < currentPhase) return;
-            // Repeated completion logs must not restart the wait or restore the initial text.
+            // 重复的完成日志不能重新计时，也不能恢复最初的等待提示。
             if (stage.Phase == LaunchPhase.StartingGui && IsStartingGui) return;
             currentPhase = stage.Phase;
             if (IsStartingGui) guiWait.Start();

@@ -91,7 +91,14 @@ namespace OneDragonLauncherWpf
                 });
                 runner.Start(environment, options);
                 await WatchStartupAsync();
-                if (dismissed || ready) return;
+                if (dismissed) return;
+                if (ready)
+                {
+                    // 终端关闭前持续保留输出读取资源；即使后端先退出，
+                    // 也保留终端供用户查看最后的日志。
+                    await closeRequested.Task;
+                    return;
+                }
                 await Task.WhenAny(runner.Completion, closeRequested.Task);
                 if (dismissed) return;
                 int exitCode = await runner.Completion;
@@ -113,7 +120,7 @@ namespace OneDragonLauncherWpf
         }
 
         /// <summary>
-        /// 监视本次启动的进程及其后代窗口；发现匹配的可见窗口后退出启动器。
+        /// 监视本次启动的进程及其后代窗口；发现主界面后保留已打开的终端，否则退出。
         /// </summary>
         /// <returns>检测到主界面、后端退出或用户关闭窗口时完成的任务。</returns>
         /// <remarks>主界面启动阶段等待六秒后显示日志；其他阶段保留三十秒提示，并继续监视。</remarks>
@@ -128,9 +135,7 @@ namespace OneDragonLauncherWpf
                 if (dismissed) return;
                 if (found)
                 {
-                    ready = true;
-                    log.Write("[窗口监视] 检测到本次启动的 OneDragon GUI，退出启动器。");
-                    Close();
+                    OnMainProgramReady();
                     return;
                 }
                 if (runner.Completion.IsCompleted) return;
@@ -153,6 +158,24 @@ namespace OneDragonLauncherWpf
                 }
                 await Task.Delay(100);
             }
+        }
+
+        /// <summary>
+        /// 主程序就绪后隐藏启动窗口并保留终端；没有终端时直接退出启动器。
+        /// </summary>
+        private void OnMainProgramReady()
+        {
+            ready = true;
+            if (terminal == null)
+            {
+                log.Write("[窗口监视] 检测到本次启动的 OneDragon GUI，退出启动器。");
+                Close();
+                return;
+            }
+            log.Write("[窗口监视] 检测到本次启动的 OneDragon GUI，隐藏启动窗口；关闭终端后退出启动器。");
+            // 隐藏主窗口前解除所属关系，使终端作为独立窗口保持显示。
+            terminal.Owner = null;
+            Hide();
         }
 
         /// <summary>
@@ -191,7 +214,11 @@ namespace OneDragonLauncherWpf
             if (terminal == null)
             {
                 terminal = new TerminalWindow(log) { Owner = this };
-                terminal.Closed += (sender, e) => terminal = null;
+                terminal.Closed += (sender, e) =>
+                {
+                    terminal = null;
+                    if (ready && !dismissed) Close();
+                };
             }
             terminal.Show();
             terminal.Activate();

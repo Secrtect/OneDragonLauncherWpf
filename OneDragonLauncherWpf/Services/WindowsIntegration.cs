@@ -130,7 +130,7 @@ namespace OneDragonLauncherWpf.Services
             });
         }
 
-        // Track descendants too: uv and python_launcher can each spawn another Python process.
+        // 同时跟踪后代进程，因为 uv 和 python_launcher 都可能再次启动 Python 子进程。
         /// <summary>
         /// 通过进程快照递归补充后代进程，覆盖 uv 和 Python 再次创建子进程的情况。
         /// </summary>

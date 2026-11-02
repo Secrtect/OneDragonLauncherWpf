@@ -112,7 +112,7 @@ namespace OneDragonLauncherWpf
         private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
         {
             if (Dispatcher.HasShutdownStarted) return;
-            // Refresh only accents, preserving the selected theme (including --dark).
+            // 仅刷新强调色，保留当前选择的主题，包括 --dark 指定的深色主题。
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (!Dispatcher.HasShutdownStarted) ApplicationAccentColorManager.ApplySystemAccent();
