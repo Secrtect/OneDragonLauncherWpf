@@ -17,14 +17,6 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        // 清理模块的错误/超时测试将本程序复制为项目内 git.exe，只处理隔离测试目录。
-        if (args.Length >= 3 && args[0] == "-C" && File.Exists(Path.Combine(args[1], "fake-git-mode")))
-        {
-            string mode = File.ReadAllText(Path.Combine(args[1], "fake-git-mode"));
-            if (mode == "timeout") System.Threading.Thread.Sleep(30000);
-            Console.Error.WriteLine("simulated git failure");
-            return 9;
-        }
         if (args.Length > 0 && args[0] == "-u")
         {
             Console.OutputEncoding = new UTF8Encoding(false);
@@ -295,7 +287,17 @@ internal static class Program
                 }
                 finally { Console.SetOut(original); }
             });
-            GitCheckpointCleanupTests.Run(Check, temporary);
+            Check("独立 Python 清理资源嵌入并位于 GUI/CLI 业务入口前", () =>
+            {
+                string script = GitCheckpointCleanup.Script;
+                Assert(script.Contains("import pygit2") && script.Contains("transaction.lock_ref(name)"));
+                foreach (string bootstrap in new[] { PythonRunner.GuiBootstrap, PythonRunner.CliBootstrap })
+                {
+                    int cleanup = bootstrap.IndexOf(script, StringComparison.Ordinal);
+                    int entry = bootstrap.IndexOf("from one_dragon.devtools.python_launcher import run_python", StringComparison.Ordinal);
+                    Assert(cleanup >= 0 && entry > cleanup + script.Length);
+                }
+            });
             Console.WriteLine("PASS: " + passed + " checks");
             return 0;
         }

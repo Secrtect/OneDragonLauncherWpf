@@ -1,22 +1,12 @@
 """使用隔离的 Python 测试环境验证内嵌引导代码，不运行游戏。"""
 import json
 import pathlib
-import re
 import subprocess
 import sys
 import tempfile
 
 
-source = (pathlib.Path(__file__).resolve().parents[1] /
-          'OneDragonLauncherWpf/Services/PythonRunner.cs').read_text(encoding='utf-8-sig')
-
-
-def constant(name):
-    expression = re.search(r'public const string ' + name + r' = (.*?);\s*\n',
-                           source, re.DOTALL).group(1)
-    prefix, literal = expression.split('@"', 1)
-    return ''.join(constant(part.strip()) for part in prefix.split('+') if part.strip()) + \
-        literal[:-1].replace('""', '"')
+from BootstrapSource import constant
 
 
 cli = constant('CliBootstrap')
@@ -65,7 +55,7 @@ sys.meta_path.insert(0, MissingColorama())
     def run(bootstrap, extra='', args=()):
         return subprocess.run([sys.executable, '-I', '-S', '-X', 'utf8', '-u', '-c',
                                setup + extra + bootstrap, *args],
-                              capture_output=True, encoding='utf-8', timeout=20)
+                              cwd=root, capture_output=True, encoding='utf-8', timeout=20)
 
     result = run(cli, missing, arguments)
     assert result.returncode == 7, result.stderr

@@ -166,6 +166,10 @@ internal static class SingleFileSmoke
             var assembly = Assembly.Load(File.ReadAllBytes(path));
             string[] embeddedDependencies = { "Wpf.Ui", "Wpf.Ui.Abstractions", "System.Buffers", "System.Memory", "System.Numerics.Vectors", "System.Runtime.CompilerServices.Unsafe" };
             string[] resources = assembly.GetManifestResourceNames();
+            Assert(resources.Contains("OneDragonLauncherWpf.GitCheckpointCleanup.py"), "The standalone EXE must contain the cleanup script.");
+            string cleanupScript = (string)assembly.GetType("OneDragonLauncherWpf.Services.GitCheckpointCleanup", true)
+                .GetField("Script").GetValue(null);
+            Assert(cleanupScript.Contains("import pygit2"), "The embedded cleanup script must load without a sidecar file.");
             foreach (string dependency in embeddedDependencies)
                 Assert(resources.Contains("costura." + dependency.ToLowerInvariant() + ".dll"), "Missing uncompressed dependency: " + dependency);
             Assert(!resources.Any(resource => resource.StartsWith("costura.", StringComparison.Ordinal) &&

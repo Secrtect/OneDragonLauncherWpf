@@ -126,9 +126,9 @@ except ModuleNotFoundError as exc:
 ";
 
         /// <summary>
-        /// 先配置输出转发和 colorama 兼容模块，再调用一条龙 GUI 的 Python 启动入口。
+        /// 配置输出转发，尝试清理 Codex tree 引用并兼容 colorama，再调用 GUI 业务入口。
         /// </summary>
-        public const string GuiBootstrap = GuiOutputBridge + ColoramaBootstrap + @"
+        public static readonly string GuiBootstrap = GuiOutputBridge + GitCheckpointCleanup.Script + ColoramaBootstrap + @"
 from one_dragon.devtools.python_launcher import run_python
 run_python(['zzz_od', 'gui', 'app'], piped=True)
 ";
@@ -138,7 +138,7 @@ run_python(['zzz_od', 'gui', 'app'], piped=True)
         /// <summary>
         /// 执行命令行引导并透传后端参数；提权由 WPF 完成，不再经过 pyuac 包装入口。
         /// </summary>
-        public const string CliBootstrap = ColoramaBootstrap + @"from one_dragon.devtools.python_launcher import run_python
+        public static readonly string CliBootstrap = GitCheckpointCleanup.Script + ColoramaBootstrap + @"from one_dragon.devtools.python_launcher import run_python
 run_python(['zzz_od', 'application', 'zzz_application_launcher'], no_windows=False, args=sys.argv[2:], piped=True)
 ";
 

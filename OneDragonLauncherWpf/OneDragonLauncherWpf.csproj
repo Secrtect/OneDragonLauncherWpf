@@ -178,6 +178,9 @@
     <Compile Include="Services\LaunchStage.cs" />
     <Compile Include="Services\PythonRunner.cs" />
     <Compile Include="Services\GitCheckpointCleanup.cs" />
+    <EmbeddedResource Include="Scripts\git_checkpoint_cleanup.py">
+      <LogicalName>OneDragonLauncherWpf.GitCheckpointCleanup.py</LogicalName>
+    </EmbeddedResource>
     <Compile Include="Services\WindowsIntegration.cs" />
   </ItemGroup>
   <ItemGroup>

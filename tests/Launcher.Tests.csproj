@@ -11,7 +11,9 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Compile Include="Program.cs" />
-    <Compile Include="GitCheckpointCleanupTests.cs" />
+    <EmbeddedResource Include="..\OneDragonLauncherWpf\Scripts\git_checkpoint_cleanup.py">
+      <LogicalName>OneDragonLauncherWpf.GitCheckpointCleanup.py</LogicalName>
+    </EmbeddedResource>
     <Compile Include="..\OneDragonLauncherWpf\Services\*.cs" />
     <Compile Include="..\OneDragonLauncherWpf\ViewModels\LauncherViewModel.cs" />
   </ItemGroup>
