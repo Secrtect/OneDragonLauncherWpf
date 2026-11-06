@@ -83,6 +83,9 @@ namespace OneDragonLauncherWpf
                     dismissed = true;
                     return;
                 }
+                model.StatusMessage = "正在检查本地 Git...";
+                await GitCheckpointCleanup.TryCleanAsync(environment.ProjectDirectory, log);
+                if (dismissed) return;
                 runner = new PythonRunner(log);
                 runner.OutputReceived += line => Dispatch(() => { if (!ready && !dismissed) model.ApplyLog(line); });
                 runner.ErrorDetected += () => Dispatch(() =>

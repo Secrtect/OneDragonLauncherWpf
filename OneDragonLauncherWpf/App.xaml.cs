@@ -81,6 +81,7 @@ namespace OneDragonLauncherWpf
                     }
                     return;
                 }
+                await GitCheckpointCleanup.TryCleanAsync(environment.ProjectDirectory, log);
                 using (var runner = new PythonRunner(log))
                 {
                     runner.Start(environment, options);

@@ -17,6 +17,14 @@ internal static class Program
 
     private static int Main(string[] args)
     {
+        // 清理模块的错误/超时测试将本程序复制为项目内 git.exe，只处理隔离测试目录。
+        if (args.Length >= 3 && args[0] == "-C" && File.Exists(Path.Combine(args[1], "fake-git-mode")))
+        {
+            string mode = File.ReadAllText(Path.Combine(args[1], "fake-git-mode"));
+            if (mode == "timeout") System.Threading.Thread.Sleep(30000);
+            Console.Error.WriteLine("simulated git failure");
+            return 9;
+        }
         if (args.Length > 0 && args[0] == "-u")
         {
             Console.OutputEncoding = new UTF8Encoding(false);
@@ -287,6 +295,7 @@ internal static class Program
                 }
                 finally { Console.SetOut(original); }
             });
+            GitCheckpointCleanupTests.Run(Check, temporary);
             Console.WriteLine("PASS: " + passed + " checks");
             return 0;
         }
@@ -295,7 +304,13 @@ internal static class Program
         {
             string root = Path.GetFullPath(temporary);
             string prefix = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-            if (root.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && Path.GetFileName(root).StartsWith("OneDragon WPF tests 中文 ")) Directory.Delete(root, true);
+            if (root.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && Path.GetFileName(root).StartsWith("OneDragon WPF tests 中文 "))
+            {
+                // Git 在 Windows 上将对象文件设为只读；仅清理本测试创建的临时目录。
+                foreach (string file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+                    File.SetAttributes(file, File.GetAttributes(file) & ~FileAttributes.ReadOnly);
+                Directory.Delete(root, true);
+            }
         }
     }
 

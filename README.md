@@ -50,6 +50,10 @@ Visual Studio 选择 **Debug** 后直接按 **F5**，未指定项目时默认进
 
 后端仍读取安装器保存的 `config/env.yml` 中的 `uv_path`，WPF 不填写或覆盖这个配置。内置 uv 存在不代表配置完整；若后端提示 UV 路径无效，需通过安装器修复。
 
+GUI 与 CLI 在环境检查和提权完成后、启动 Python 业务前，共用独立的 `GitCheckpointCleanup` 模块。模块优先查找项目的 `.install/MinGit/cmd/git.exe`，其次查找 PATH 中已有的 `git.exe`；没有 Git 时记录日志并跳过，不安装或下载 Git。项目没有自己的 `.git` 时跳过，不清理父目录仓库。帮助、版本查询和预览模式不执行清理。
+
+找到 Git 后，仅删除 `refs/codex/turn-diffs/checkpoints/` 下直接指向 tree 的引用，兼容松散引用和 `packed-refs`；不备份，可能影响对应 Codex 检查点的撤销功能。其他引用、分支、标签和工作区文件保留。删除使用事务并核对原对象 ID，引用发生变化或锁冲突时整批失败。命令失败或单条命令超过 10 秒时记录警告并继续原有启动流程，不保证此时后端的代码更新能够成功。清理与后端更新之间若有其他程序重新创建 tree 引用，仍可能触发原问题。
+
 工作目录固定为实际 Python 项目根目录，注入 `PYTHONPATH`、`PYTHONUNBUFFERED=1`、`PYTHONUTF8=1`、`PYTHONIOENCODING=utf-8`。
 
 GUI 模式保留原版入口：
@@ -125,6 +129,8 @@ Costura 只打包启动器的托管依赖，**不会把 .NET Framework、Python 
 
 测试涵盖命令行校验、Windows 参数引用、源码目录与执行器选择、uv frozen 参数、中文/ANSI 日志、容量上限、并发写入，以及模拟子进程的双路输出排空、错误通知与退出码。测试不调用真实 Python 自动化、不操作游戏。
 
+Git 清理集成测试需要 PATH 中已有 Git，使用临时仓库验证松散/打包引用清理、其他引用与本地修改保留、锁冲突的事务回滚、重复执行、缺少 Git、命令失败和超时；不修改实际一条龙项目。
+
 有真实 Python 解释器时，可额外运行 `python tests/OutputBridgeSmoke.py`：验证启动器管道关闭后 Python 及其子进程仍能大量输出，以及启动失败时中文日志、异常堆栈、尾部输出和退出码完整保留。此检查不依赖一条龙模块，不新增运行日志文件。
 
 运行 `python tests/BootstrapSmoke.py` 可验证 GUI/CLI 在缺少 colorama 时的兼容注入、已安装模块不被覆盖、模块内部缺失依赖正常报错，以及 CLI 参数和退出码传递；使用隔离的模拟模块，不启动游戏。
@@ -141,6 +147,7 @@ Costura 只打包启动器的托管依赖，**不会把 .NET Framework、Python 
 - `ViewModels/LauncherViewModel.cs`：进度与状态绑定。
 - `Services/LaunchEnvironment.cs`：源码目录和 Python/uv 检测。
 - `Services/PythonRunner.cs`：启动参数、UTF-8 管道和日志事件。
+- `Services/GitCheckpointCleanup.cs`：启动业务前的可选 Git 检查与 Codex tree 检查点清理。
 - `Services/WindowsIntegration.cs`：管理员重启、控制台接入与进程窗口监视。
 - `Services/LauncherLog.cs`、`LaunchStage.cs`、`LauncherOptions.cs`：日志缓冲、阶段识别与命令行解析。
 - `FodyWeavers.xml`：Release 依赖嵌入与压缩配置。

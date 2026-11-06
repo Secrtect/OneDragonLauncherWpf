@@ -11,6 +11,7 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Compile Include="Program.cs" />
+    <Compile Include="GitCheckpointCleanupTests.cs" />
     <Compile Include="..\OneDragonLauncherWpf\Services\*.cs" />
     <Compile Include="..\OneDragonLauncherWpf\ViewModels\LauncherViewModel.cs" />
   </ItemGroup>
