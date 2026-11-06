@@ -1,12 +1,11 @@
 """使用真实 Python 解释器检查输出转发，无需一条龙依赖，也不操作游戏。"""
-import pathlib
 import os
 import subprocess
 import sys
 
-source = (pathlib.Path(__file__).resolve().parents[1] /
-          'OneDragonLauncherWpf/Services/PythonRunner.cs').read_text(encoding='utf-8-sig')
-bridge = source.split('public const string GuiOutputBridge = @"', 1)[1].split('";', 1)[0].replace('""', '"')
+from BootstrapSource import constant
+
+bridge = constant('GuiOutputBridge')
 
 
 def start(code):

@@ -48,106 +48,34 @@ namespace OneDragonLauncherWpf.Services
         /// <summary>
         /// 在 Python 进程内转发标准输出和错误输出；WPF 退出后继续排空并丢弃输出，避免后端阻塞。
         /// </summary>
-        public const string GuiOutputBridge = @"import os, sys, threading, atexit
-if os.name == 'nt':
-    import ctypes, msvcrt
-    _set_std_handle = ctypes.WinDLL('kernel32', use_last_error=True).SetStdHandle
-    _set_std_handle.argtypes = [ctypes.c_ulong, ctypes.c_void_p]
-    _set_std_handle.restype = ctypes.c_int
-def _publish_handle(fd):
-    if os.name == 'nt' and not _set_std_handle(ctypes.c_ulong(-10 - fd), msvcrt.get_osfhandle(fd)):
-        raise ctypes.WinError(ctypes.get_last_error())
-def _relay_output(source, target):
-    try:
-        while True:
-            data = os.read(source, 8192)
-            if not data:
-                break
-            if target is not None:
-                try:
-                    while data:
-                        data = data[os.write(target, data):]
-                except OSError:
-                    os.close(target)
-                    target = None
-    finally:
-        os.close(source)
-        if target is not None:
-            os.close(target)
-_output_threads = []
-for _fd in (1, 2):
-    _target = os.dup(_fd)
-    _source, _writer = os.pipe()
-    os.dup2(_writer, _fd)
-    os.close(_writer)
-    _publish_handle(_fd)
-    _thread = threading.Thread(target=_relay_output, args=(_source, _target), daemon=True)
-    _thread.start()
-    _output_threads.append(_thread)
-def _finish_output():
-    for stream in (sys.stdout, sys.stderr):
-        try:
-            stream.flush()
-        except (OSError, ValueError):
-            pass
-    # 空设备不会写入磁盘文件；释放本地管道写入端，并排空剩余输出。
-    with open(os.devnull, 'wb') as sink:
-        for fd in (1, 2):
-            os.dup2(sink.fileno(), fd)
-            _publish_handle(fd)
-    for thread in _output_threads:
-        thread.join(timeout=2)
-atexit.register(_finish_output)
-";
+        public static readonly string GuiOutputBridge = EmbeddedPythonScript.Read("GuiOutputBridge");
 
         // 两种启动入口都需在导入 Python 启动模块前执行此兼容处理。
         // 仅在确实缺少 colorama 时注入替代模块。
         /// <summary>
         /// 仅在缺少 colorama 时注入最小兼容模块，不覆盖已安装模块或掩盖其内部依赖错误。
         /// </summary>
-        public const string ColoramaBootstrap = @"import sys, types
-try:
-    import colorama
-except ModuleNotFoundError as exc:
-    if exc.name != 'colorama':
-        raise
-    class _UniversalDummy:
-        def __getattr__(self, name): return self
-        def __call__(self, *a, **k): return self
-        def __str__(self): return ''
-        def __repr__(self): return ''
-        def __add__(self, other): return str(other) if isinstance(other, str) else ''
-        def __radd__(self, other): return str(other) if isinstance(other, str) else ''
-    d = _UniversalDummy()
-    m = types.ModuleType('colorama')
-    m.__getattr__ = lambda name: d
-    for name in ['colorama', 'colorama.ansi', 'colorama.ansitowin32', 'colorama.win32', 'colorama.initialise']:
-        sys.modules[name] = m
-";
+        public static readonly string ColoramaBootstrap = EmbeddedPythonScript.Read("ColoramaBootstrap");
 
         /// <summary>
         /// 在当前 Python 进程内设置启动器版本，与 --version 保持一致。
         /// </summary>
-        public const string VersionBootstrap = @"import one_dragon.version
-one_dragon.version.__version__ = '" + LauncherVersion.Value + @"'
-";
+        public static readonly string VersionBootstrap = EmbeddedPythonScript.Read("VersionBootstrap")
+            .Replace("__LAUNCHER_VERSION__", LauncherVersion.Value);
 
         /// <summary>
         /// 配置输出转发，尝试清理 Codex tree 引用并兼容 colorama，再调用 GUI 业务入口。
         /// </summary>
-        public static readonly string GuiBootstrap = GuiOutputBridge + GitCheckpointCleanup.Script + ColoramaBootstrap + VersionBootstrap + @"
-from one_dragon.devtools.python_launcher import run_python
-run_python(['zzz_od', 'gui', 'app'], piped=True)
-";
+        public static readonly string GuiBootstrap = GuiOutputBridge + GitCheckpointCleanup.Script + ColoramaBootstrap + VersionBootstrap +
+            EmbeddedPythonScript.Read("GuiBootstrap");
 
         // 启动器已完成参数校验和提权，因此跳过 pyuac 的可执行文件包装入口。
         // GetPythonArguments 始终将启动器专用的 --onedragon 参数放在首位。
         /// <summary>
         /// 执行命令行引导并透传后端参数；提权由 WPF 完成，不再经过 pyuac 包装入口。
         /// </summary>
-        public static readonly string CliBootstrap = GitCheckpointCleanup.Script + ColoramaBootstrap + VersionBootstrap + @"from one_dragon.devtools.python_launcher import run_python
-run_python(['zzz_od', 'application', 'zzz_application_launcher'], no_windows=False, args=sys.argv[2:], piped=True)
-";
+        public static readonly string CliBootstrap = GitCheckpointCleanup.Script + ColoramaBootstrap + VersionBootstrap +
+            EmbeddedPythonScript.Read("CliBootstrap");
 
         /// <summary>
         /// 创建使用指定日志缓冲的进程执行器。

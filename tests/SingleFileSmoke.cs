@@ -170,6 +170,14 @@ internal static class SingleFileSmoke
             string cleanupScript = (string)assembly.GetType("OneDragonLauncherWpf.Services.GitCheckpointCleanup", true)
                 .GetField("Script").GetValue(null);
             Assert(cleanupScript.Contains("import pygit2"), "The embedded cleanup script must load without a sidecar file.");
+            var runner = assembly.GetType("OneDragonLauncherWpf.Services.PythonRunner", true);
+            foreach (string mode in new[] { "GuiBootstrap", "CliBootstrap" })
+            {
+                string bootstrap = (string)runner.GetField(mode).GetValue(null);
+                Assert(bootstrap.Contains(cleanupScript) && bootstrap.Contains("from one_dragon.devtools.python_launcher import run_python"),
+                    "The standalone EXE must load all Python bootstrap resources: " + mode);
+                Assert(!bootstrap.Contains("__LAUNCHER_VERSION__"), "The launcher version placeholder must be replaced.");
+            }
             foreach (string dependency in embeddedDependencies)
                 Assert(resources.Contains("costura." + dependency.ToLowerInvariant() + ".dll"), "Missing uncompressed dependency: " + dependency);
             Assert(!resources.Any(resource => resource.StartsWith("costura.", StringComparison.Ordinal) &&

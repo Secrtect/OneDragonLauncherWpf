@@ -147,6 +147,7 @@ Costura 只打包启动器的托管依赖，**不会把 .NET Framework、Python 
 - `ViewModels/LauncherViewModel.cs`：进度与状态绑定。
 - `Services/LaunchEnvironment.cs`：源码目录和 Python/uv 检测。
 - `Services/PythonRunner.cs`：启动参数、UTF-8 管道和日志事件。
+- `Services/EmbeddedPythonScript.cs`、`Scripts/*.py`：统一加载嵌入 EXE 的 Python 源码；输出转发、colorama 兼容、版本注入及 GUI/CLI 入口分别维护，运行时仍通过 `python -u -c` 按顺序执行，无需分发外部脚本。版本脚本中的 `__LAUNCHER_VERSION__` 由 C# 替换为 `LauncherVersion.Value`。
 - `Services/GitCheckpointCleanup.cs`、`Scripts/git_checkpoint_cleanup.py`：加载内嵌脚本，复用项目 pygit2 清理 Codex tree 检查点。
 - `Services/WindowsIntegration.cs`：管理员重启、控制台接入与进程窗口监视。
 - `Services/LauncherLog.cs`、`LaunchStage.cs`、`LauncherOptions.cs`：日志缓冲、阶段识别与命令行解析。

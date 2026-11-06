@@ -11,6 +11,21 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Compile Include="Program.cs" />
+    <EmbeddedResource Include="..\OneDragonLauncherWpf\Scripts\gui_output_bridge.py">
+      <LogicalName>OneDragonLauncherWpf.GuiOutputBridge.py</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\OneDragonLauncherWpf\Scripts\colorama_bootstrap.py">
+      <LogicalName>OneDragonLauncherWpf.ColoramaBootstrap.py</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\OneDragonLauncherWpf\Scripts\version_bootstrap.py">
+      <LogicalName>OneDragonLauncherWpf.VersionBootstrap.py</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\OneDragonLauncherWpf\Scripts\gui_bootstrap.py">
+      <LogicalName>OneDragonLauncherWpf.GuiBootstrap.py</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\OneDragonLauncherWpf\Scripts\cli_bootstrap.py">
+      <LogicalName>OneDragonLauncherWpf.CliBootstrap.py</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="..\OneDragonLauncherWpf\Scripts\git_checkpoint_cleanup.py">
       <LogicalName>OneDragonLauncherWpf.GitCheckpointCleanup.py</LogicalName>
     </EmbeddedResource>
