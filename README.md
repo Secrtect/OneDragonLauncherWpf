@@ -69,7 +69,7 @@ GUI 和 CLI 模式均在导入 Python 启动器前注入 colorama 兼容 shim；
 
 ## 命令行
 
-程序集、Windows 文件、应用清单及项目发布版本为 `1.0.0.0`。`--version` 独立显示 `OneDragon Launcher WPF v2.6.0`。修改版本后需重新构建并替换部署的 EXE；Git 标签不会自动修改程序版本。
+程序集、Windows 文件、应用清单及项目发布版本为 `1.0.0.0`。`--version` 显示 `OneDragon Launcher WPF v2.6.0`，版本值统一在 `Services/LauncherVersion.cs` 中维护。GUI 与 CLI 启动时会在当前 Python 进程内设置 `one_dragon.version.__version__`，使 Python 启动日志跟随同一版本，不修改 Python 源码文件；该值表示 WPF 启动器版本。修改版本后需重新构建并替换部署的 EXE；Git 标签不会自动修改程序版本。
 
 ```text
 -h, --help                  帮助

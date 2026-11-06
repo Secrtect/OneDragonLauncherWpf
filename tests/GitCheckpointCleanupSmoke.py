@@ -176,7 +176,7 @@ class BusinessLoader(importlib.abc.Loader):
         module.run_python = lambda *args, **kwargs: print('BUSINESS_STARTED')
 class BusinessFinder(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname in ('one_dragon', 'one_dragon.devtools'):
+        if fullname in ('one_dragon', 'one_dragon.devtools', 'one_dragon.version'):
             return importlib.util.spec_from_loader(fullname, loader=None, is_package=True)
         if fullname == 'one_dragon.devtools.python_launcher':
             return importlib.util.spec_from_loader(fullname, BusinessLoader())

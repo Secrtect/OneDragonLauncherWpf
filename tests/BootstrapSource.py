@@ -8,10 +8,13 @@ SOURCE = (ROOT / 'OneDragonLauncherWpf/Services/PythonRunner.cs').read_text(enco
 
 
 def constant(name):
+    if name == 'LauncherVersion.Value':
+        source = (ROOT / 'OneDragonLauncherWpf/Services/LauncherVersion.cs').read_text(encoding='utf-8-sig')
+        return re.search(r'public const string Value = "([^"]+)";', source).group(1)
     if name == 'GitCheckpointCleanup.Script':
         return (ROOT / 'OneDragonLauncherWpf/Scripts/git_checkpoint_cleanup.py').read_text(encoding='utf-8-sig') + '\n'
     expression = re.search(r'public (?:const|static readonly) string ' + name + r' = (.*?);\s*\n',
                            SOURCE, re.DOTALL).group(1)
-    prefix, literal = expression.split('@"', 1)
-    return ''.join(constant(part.strip()) for part in prefix.split('+') if part.strip()) + \
-        literal[:-1].replace('""', '"')
+    parts = re.findall(r'@"(?:[^"]|"")*"|[A-Za-z_][\w.]*', expression)
+    return ''.join(part[2:-1].replace('""', '"') if part.startswith('@"') else constant(part)
+                   for part in parts)

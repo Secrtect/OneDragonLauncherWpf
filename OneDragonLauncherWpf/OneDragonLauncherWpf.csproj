@@ -173,6 +173,7 @@
     <Compile Include="ViewModels\LauncherViewModel.cs" />
     <Compile Include="WindowAppearance.cs" />
     <Compile Include="Services\LauncherOptions.cs" />
+    <Compile Include="Services\LauncherVersion.cs" />
     <Compile Include="Services\LaunchEnvironment.cs" />
     <Compile Include="Services\LauncherLog.cs" />
     <Compile Include="Services\LaunchStage.cs" />

@@ -20,9 +20,14 @@ with tempfile.TemporaryDirectory(prefix='OneDragon bootstrap ') as directory:
         folder.mkdir(exist_ok=True)
         (folder / '__init__.py').write_text('', encoding='utf-8')
 
+    version_file = root / 'one_dragon/version.py'
+    version_file.write_text('__version__ = "v0.0.0"\n', encoding='utf-8')
+
     # 复现发生错误时的导入顺序：导入启动模块前需要先导入 colorama。
     (root / 'one_dragon/devtools/python_launcher.py').write_text('''
 import json
+from one_dragon.version import __version__
+assert __version__ == VERSION_EXPECTED
 from colorama import Fore, Style, init
 init(autoreset=True)
 
@@ -39,7 +44,7 @@ def run_python(modules, piped, no_windows=None, args=None):
     print(json.dumps(args, ensure_ascii=False))
     print(Fore.GREEN + 'CLI_READY' + Style.RESET_ALL)
     sys.exit(7)
-''', encoding='utf-8')
+'''.replace('VERSION_EXPECTED', repr(constant('LauncherVersion.Value'))), encoding='utf-8')
 
     setup = "import sys\nsys.path.insert(0, %r)\n" % directory
     # 强制模拟缺少顶层 colorama 模块的情况，不受全局安装状态影响。
@@ -73,6 +78,8 @@ sys.meta_path.insert(0, MissingColorama())
     result = run(gui, missing)
     assert result.returncode == 0 and result.stdout.strip() == 'GUI_READY', result.stderr
     print('PASS: GUI missing colorama still starts through the output bridge')
+    assert version_file.read_text(encoding='utf-8') == '__version__ = "v0.0.0"\n'
+    print('PASS: GUI/CLI inherit the launcher version without changing the source file')
 
     # 能找到已安装的模块时必须使用原模块，不能被兼容替代模块覆盖。
     (root / 'colorama.py').write_text('''

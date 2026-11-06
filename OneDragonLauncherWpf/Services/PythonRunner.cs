@@ -126,9 +126,16 @@ except ModuleNotFoundError as exc:
 ";
 
         /// <summary>
+        /// 在当前 Python 进程内设置启动器版本，与 --version 保持一致。
+        /// </summary>
+        public const string VersionBootstrap = @"import one_dragon.version
+one_dragon.version.__version__ = '" + LauncherVersion.Value + @"'
+";
+
+        /// <summary>
         /// 配置输出转发，尝试清理 Codex tree 引用并兼容 colorama，再调用 GUI 业务入口。
         /// </summary>
-        public static readonly string GuiBootstrap = GuiOutputBridge + GitCheckpointCleanup.Script + ColoramaBootstrap + @"
+        public static readonly string GuiBootstrap = GuiOutputBridge + GitCheckpointCleanup.Script + ColoramaBootstrap + VersionBootstrap + @"
 from one_dragon.devtools.python_launcher import run_python
 run_python(['zzz_od', 'gui', 'app'], piped=True)
 ";
@@ -138,7 +145,7 @@ run_python(['zzz_od', 'gui', 'app'], piped=True)
         /// <summary>
         /// 执行命令行引导并透传后端参数；提权由 WPF 完成，不再经过 pyuac 包装入口。
         /// </summary>
-        public static readonly string CliBootstrap = GitCheckpointCleanup.Script + ColoramaBootstrap + @"from one_dragon.devtools.python_launcher import run_python
+        public static readonly string CliBootstrap = GitCheckpointCleanup.Script + ColoramaBootstrap + VersionBootstrap + @"from one_dragon.devtools.python_launcher import run_python
 run_python(['zzz_od', 'application', 'zzz_application_launcher'], no_windows=False, args=sys.argv[2:], piped=True)
 ";
 
