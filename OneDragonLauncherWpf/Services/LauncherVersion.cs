@@ -5,6 +5,6 @@ namespace OneDragonLauncherWpf.Services
     /// </summary>
     public static class LauncherVersion
     {
-        public const string Value = "v2.6.0";
+        public const string Value = "v2.6.1";
     }
 }

@@ -123,7 +123,7 @@ namespace OneDragonLauncherWpf
         /// 监视本次启动的进程及其后代窗口；发现主界面后保留已打开的终端，否则退出。
         /// </summary>
         /// <returns>检测到主界面、后端退出或用户关闭窗口时完成的任务。</returns>
-        /// <remarks>主界面启动阶段等待六秒后显示日志；其他阶段保留三十秒提示，并继续监视。</remarks>
+        /// <remarks>主界面启动阶段等待 <see cref="LauncherViewModel.GuiLogDelaySeconds"/> 秒后显示日志；同时保留整体三十秒提示，并继续监视。</remarks>
         private async Task WatchStartupAsync()
         {
             var family = new HashSet<uint> { (uint)runner.ProcessId };
@@ -142,7 +142,7 @@ namespace OneDragonLauncherWpf
                 if (model.UpdateGuiWait())
                 {
                     timeoutReported = true;
-                    log.Write("[窗口监视] 主界面启动已等待 6 秒，尚未检测到窗口，显示日志并继续等待。");
+                    log.Write("[窗口监视] 主界面启动已等待 " + LauncherViewModel.GuiLogDelaySeconds + " 秒，尚未检测到窗口，显示日志并继续等待。");
                     OpenLog();
                 }
                 if (!timeoutReported && timer.Elapsed >= TimeSpan.FromSeconds(30))

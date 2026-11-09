@@ -11,6 +11,9 @@ namespace OneDragonLauncherWpf.ViewModels
     /// </summary>
     public sealed class LauncherViewModel : INotifyPropertyChanged
     {
+        /// <summary>主界面启动阶段自动显示日志前的等待秒数。</summary>
+        public const int GuiLogDelaySeconds = 15;
+
         private string statusMessage = "正在初始化环境并启动 GUI...";
         private string stepText = "检查工作目录与 Python 环境...";
         private LaunchPhase currentPhase = LaunchPhase.Initializing;
@@ -75,15 +78,15 @@ namespace OneDragonLauncherWpf.ViewModels
             if (message.Length > 0) StepText = message;
         }
 
-        /// <summary>仅在环境就绪后的界面启动阶段，三秒后更新提示，六秒后请求显示日志。</summary>
-        /// <returns>首次等待满六秒时返回 true，通知窗口显示日志。</returns>
+        /// <summary>仅在环境就绪后的界面启动阶段，四秒后更新提示，达到日志等待阈值后请求显示日志。</summary>
+        /// <returns>首次等待满 <see cref="GuiLogDelaySeconds"/> 秒时返回 true，通知窗口显示日志。</returns>
         public bool UpdateGuiWait()
         {
             if (HasFailed || !IsStartingGui) return false;
             double seconds = guiWait.Elapsed.TotalSeconds;
             if (seconds >= 4 && StepText != "加载核心组件耗时稍长，正在努力准备中...")
                 StepText = "加载核心组件耗时稍长，正在努力准备中...";
-            if (seconds < 10 || guiWaitReported) return false;
+            if (seconds < GuiLogDelaySeconds || guiWaitReported) return false;
             guiWaitReported = true;
             return true;
         }
